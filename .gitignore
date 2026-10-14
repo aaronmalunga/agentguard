@@ -218,3 +218,16 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- AgentGuard additions ---
+# Secrets: never commit. Real credentials live OUTSIDE the repo.
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+# Local data / model artefacts
+*.sqlite
+*.db
+mlruns/
