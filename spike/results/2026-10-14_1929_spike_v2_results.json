@@ -1,0 +1,178 @@
+{
+  "ran_at": "2026-10-14T19:29:41+0200",
+  "results": [
+    {
+      "step": "0. OAuth token",
+      "http": 200,
+      "ms": 1376,
+      "debug_id": "f8406963a8643",
+      "error": null,
+      "issue": null,
+      "expires_in_s": 32400
+    },
+    {
+      "step": "9a. Honour-period auth: create order",
+      "http": 201,
+      "ms": 3474,
+      "debug_id": "f6258326bb1a3",
+      "error": null,
+      "issue": null,
+      "order_id": "957113408R0188009",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "9a. Honour-period auth: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f6258326bb1a3",
+      "error": null,
+      "issue": null,
+      "auth_id": "4FB34125L4269610X",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "9a. authorization window",
+      "http": 200,
+      "ms": 0,
+      "debug_id": null,
+      "error": null,
+      "issue": null,
+      "create_time": "2026-10-14T17:29:13Z",
+      "expiration_time": "2026-11-12T17:29:13Z",
+      "seller_protection": "NOT_ELIGIBLE"
+    },
+    {
+      "step": "9b. reauthorize immediately",
+      "http": 422,
+      "ms": 1554,
+      "debug_id": "f29581730953a",
+      "error": "UNPROCESSABLE_ENTITY",
+      "issue": "REAUTHORIZATION_TOO_SOON: A reauthorization is only allowed once from Day 4 to Day 29 since the date of the original authorization.",
+      "new_auth_id": null,
+      "status": null
+    },
+    {
+      "step": "9c. void (cleanup)",
+      "http": 200,
+      "ms": 1569,
+      "debug_id": "f4359002168f4",
+      "error": null,
+      "issue": null
+    },
+    {
+      "step": "8a. Refund path: create order",
+      "http": 201,
+      "ms": 3004,
+      "debug_id": "f24747043377b",
+      "error": null,
+      "issue": null,
+      "order_id": "9AL643846R587802F",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "8a. Refund path: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f24747043377b",
+      "error": null,
+      "issue": null,
+      "auth_id": "1W4666266D241434U",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "8a. capture",
+      "http": 201,
+      "ms": 2871,
+      "debug_id": "f16731356c4af",
+      "error": null,
+      "issue": null,
+      "capture_id": "3EY76376WV630115A",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "8b. add tracking",
+      "http": 201,
+      "ms": 1674,
+      "debug_id": "f413339cc60a3",
+      "error": null,
+      "issue": null,
+      "tracker_id": "3EY76376WV630115A-5858125919797452310556",
+      "tracker_status": "SHIPPED"
+    },
+    {
+      "step": "8c. add tracking REPLAY (same Request-Id)",
+      "http": 200,
+      "ms": 2042,
+      "debug_id": "f848423e2bf54",
+      "error": null,
+      "issue": null
+    },
+    {
+      "step": "8d. order read-back",
+      "http": 200,
+      "ms": 1391,
+      "debug_id": "f4004250aa07a",
+      "error": null,
+      "issue": null,
+      "order_status": "COMPLETED",
+      "tracker_count": 1
+    },
+    {
+      "step": "8e. partial refund $10",
+      "http": 201,
+      "ms": 2913,
+      "debug_id": "f22897435b6c1",
+      "error": null,
+      "issue": null,
+      "refund_id": "6XC37224P67717145",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "8f. partial refund REPLAY (same Request-Id)",
+      "http": 200,
+      "ms": 2123,
+      "debug_id": "f8615906d70c9",
+      "error": null,
+      "issue": null,
+      "refund_id": "6XC37224P67717145",
+      "same_refund": true
+    },
+    {
+      "step": "8g. over-refund $35 (only $30 left)",
+      "http": 422,
+      "ms": 1654,
+      "debug_id": "f7826162361de",
+      "error": "UNPROCESSABLE_ENTITY",
+      "issue": "REFUND_AMOUNT_EXCEEDED: The refund amount must be less than or equal to the capture amount that has not yet been refunded.",
+      "refund_id": null,
+      "status": null
+    },
+    {
+      "step": "8h. refund remaining $30",
+      "http": 201,
+      "ms": 2593,
+      "debug_id": "f6590002c3163",
+      "error": null,
+      "issue": null,
+      "refund_id": "12F29346P9551614U",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "8i. capture read-back",
+      "http": 200,
+      "ms": 1162,
+      "debug_id": "f228895fd1a4d",
+      "error": null,
+      "issue": null,
+      "capture_status": "REFUNDED"
+    },
+    {
+      "step": "8j. cancel tracker",
+      "http": 204,
+      "ms": 2078,
+      "debug_id": "f97331730ca57",
+      "error": null,
+      "issue": null
+    }
+  ]
+}
