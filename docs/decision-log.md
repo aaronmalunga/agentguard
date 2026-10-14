@@ -26,6 +26,8 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Stage 0 spike passed** ([evidence](../spike/)): authorize/capture/void, idempotent capture, Vault charge with no
   cardholder present, and a decline that returns HTTP 201 with authorization `DENIED` → the guard must check payment
   status, never only the HTTP code.
+- **CI blocked by GitHub account billing lock** (job never started; not a code failure). Until resolved, CI steps are
+  replayed locally before each push. Workflow runner pinned to `ubuntu-24.04` for reproducibility.
 - **Spike bug fixed:** a logging parameter named `status` collided with the payment `status` field. Lesson: name values
   by meaning (`http_status` vs payment status); covered by unit tests from Phase 1.
 
