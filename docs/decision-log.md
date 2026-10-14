@@ -5,6 +5,8 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 14 Oct 2026 — Project start (Stage 0)
 
+- **Agent framework: Strands Agents for the demo agent; guard framework-free** → [ADR-0005](adr/0005-agent-framework-strands.md).
+  *Why:* trust boundary (agent asks, guard moves money); MCP built in; Apache-2.0; Bedrock-ready.
 - **Two decision points instead of one** → [ADR-0001](adr/0001-two-decision-points.md).
   Clear violations are blocked *before* authorization; only uncertain cases are authorized and held for a human.
   *Why:* PayPal's data ([S5](sources.md#s5)) shows the benefit of fraud prevention comes from stopping it upstream; an
