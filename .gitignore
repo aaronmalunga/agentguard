@@ -231,3 +231,5 @@ secrets/
 *.sqlite
 *.db
 mlruns/
+desktop.ini
+Thumbs.db

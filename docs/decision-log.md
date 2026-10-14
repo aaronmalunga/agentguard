@@ -36,3 +36,6 @@ Every significant decision, pivot and correction, newest first. Real architectur
 ## Before 14 Oct (from planning)
 - Name **"AgentGuard — built on PayPal"** (never "PayPal AgentGuard"), licence **Apache-2.0**, **sandbox only**,
   fresh repository with no reused course code.
+
+- 2026-10-14 · ADR-0006: LLM provider-agnostic; model chosen by pre-registered bake-off (Gemini / OpenAI / Anthropic, direct accounts); Bedrock on AWS deploy.
+- 2026-10-14 · Spike v2: approvals expire before 3-day honour period → auto-void (D2); refund guard adds only what PayPal doesn't enforce (D3); agent never uses toolkit create_order, which hard-codes CAPTURE (D4); catch before capture: void = $0 fee, refund = fee lost (D5).
