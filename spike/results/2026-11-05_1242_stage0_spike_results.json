@@ -1,0 +1,171 @@
+{
+  "ran_at": "2026-11-05T12:42:50+0200",
+  "results": [
+    {
+      "step": "1. OAuth token",
+      "http": 200,
+      "ms": 1268,
+      "debug_id": "f787545d2b772",
+      "error": null,
+      "issue": null,
+      "expires_in_s": 32400,
+      "scope_count": 29
+    },
+    {
+      "step": "2. Approve path: create order",
+      "http": 201,
+      "ms": 3684,
+      "debug_id": "f60294891ea8d",
+      "error": null,
+      "issue": null,
+      "order_id": "44625925C3433682Y",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "2. Approve path: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f60294891ea8d",
+      "error": null,
+      "issue": null,
+      "auth_id": "7DF68158FJ953750D",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "2. capture",
+      "http": 201,
+      "ms": 3378,
+      "debug_id": "f988558b2e5c5",
+      "error": null,
+      "issue": null,
+      "capture_id": "9NB77250FE037211B",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "3. capture REPLAY (same Request-Id)",
+      "http": 200,
+      "ms": 1195,
+      "debug_id": "f3673544c3945",
+      "error": null,
+      "issue": null,
+      "capture_id": "9NB77250FE037211B",
+      "same_capture": true
+    },
+    {
+      "step": "3b. capture again (NEW Request-Id)",
+      "http": 422,
+      "ms": 1059,
+      "debug_id": "f4373884c5fa1",
+      "error": "UNPROCESSABLE_ENTITY",
+      "issue": "AUTHORIZATION_ALREADY_CAPTURED: Authorization has already been captured.",
+      "capture_id": null
+    },
+    {
+      "step": "4. Block path: create order",
+      "http": 201,
+      "ms": 3071,
+      "debug_id": "f134596ad5181",
+      "error": null,
+      "issue": null,
+      "order_id": "3A385907MX5027806",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "4. Block path: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f134596ad5181",
+      "error": null,
+      "issue": null,
+      "auth_id": "87332789WG223364L",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "4. void",
+      "http": 200,
+      "ms": 1126,
+      "debug_id": "f103126bbfb3d",
+      "error": null,
+      "issue": null,
+      "status": "VOIDED"
+    },
+    {
+      "step": "5a. Vault-on-success: create order",
+      "http": 201,
+      "ms": 4276,
+      "debug_id": "f861899c43ae3",
+      "error": null,
+      "issue": null,
+      "order_id": "03L99004SC4169521",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "5a. Vault-on-success: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f861899c43ae3",
+      "error": null,
+      "issue": null,
+      "auth_id": "9TR047501X1447513",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "5a. vault result",
+      "http": 200,
+      "ms": 0,
+      "debug_id": null,
+      "error": null,
+      "issue": null,
+      "vault_id_present": true,
+      "vault_status": "VAULTED"
+    },
+    {
+      "step": "5b. Agent charge via vault_id: create order",
+      "http": 201,
+      "ms": 3914,
+      "debug_id": "f58303961326c",
+      "error": null,
+      "issue": null,
+      "order_id": "3W703391YT956301R",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "5b. Agent charge via vault_id: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f58303961326c",
+      "error": null,
+      "issue": null,
+      "auth_id": "4KA94491WF8881031",
+      "auth_status": "CREATED"
+    },
+    {
+      "step": "5b. void (cleanup)",
+      "http": 200,
+      "ms": 1757,
+      "debug_id": "f338061a3d0d7",
+      "error": null,
+      "issue": null
+    },
+    {
+      "step": "6. Decline trigger: create order",
+      "http": 201,
+      "ms": 3669,
+      "debug_id": "f7403477739d1",
+      "error": null,
+      "issue": null,
+      "order_id": "3EU32100XS923532A",
+      "status": "COMPLETED"
+    },
+    {
+      "step": "6. Decline trigger: authorized at create",
+      "http": 200,
+      "ms": 0,
+      "debug_id": "f7403477739d1",
+      "error": null,
+      "issue": null,
+      "auth_id": "2D301356R89086715",
+      "auth_status": "DENIED"
+    }
+  ]
+}
