@@ -35,3 +35,6 @@ markers = ["sandbox: calls the real PayPal sandbox (needs keys; skipped by defau
 [tool.ruff]
 line-length = 110
 target-version = "py312"
+
+[tool.ruff.lint]
+ignore = ["EXE"]  # Windows/WSL mounts mark every file executable; git stores them as 100644
