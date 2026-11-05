@@ -27,6 +27,10 @@ Every significant decision, pivot and correction, newest first. Real architectur
   also broke a hard limit, so rules alone would score ≥ 84% by construction. *Changed:* froze supplement catalogue
   **v1** (120 cases, all inside the limits; 35 held out) and an "AI-dependent subset" pass mark, still before any rule
   exists. 13 more gaps logged with owners and days; 6 decisions left open for Aaron (D1–D6).
+- **Decisions D1–D4 approved by Aaron (15:24):** two kinds of "ask" (ask-first for manipulation, hold for price/item
+  doubt); buyer approves the mandate through PayPal and the receipt hash goes in the order's `custom_id` (after a
+  sandbox round-trip check); cart and prices from the merchant's system, never the agent; page text from the MCP proxy,
+  never the agent. Adversarial review becomes a daily step → [review-process.md](review-process.md).
 - **Live smoke test can't run from Claude's sandboxed shells** (PayPal hosts aren't on their network allowlist); Aaron
   runs `scripts/smoke_gateway.py` on his laptop.
 
