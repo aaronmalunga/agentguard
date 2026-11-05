@@ -15,3 +15,12 @@ jobs:
           if git ls-files | grep -E '(^|/)\.env$|\.pem$|\.key$'; then echo "Secret file tracked!"; exit 1; fi
       - name: Byte-compile Python
         run: python -m compileall -q spike
+      - uses: astral-sh/setup-uv@v5
+      - name: Install (locked)
+        run: uv sync --locked
+      - name: Lint
+        run: uv run ruff check src tests eval scripts
+      - name: Unit tests (fake PayPal, no keys)
+        run: uv run pytest --cov=agentguard --cov-report=term
+      - name: Attack catalogue rebuilds to the frozen hashes
+        run: python eval/attacks/build_catalogue.py && git diff --exit-code eval/attacks/v0

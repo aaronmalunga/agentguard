@@ -1,6 +1,6 @@
 # ADR-0002: Deploy one artefact to Render (judge demo) and AWS (architecture showcase)
 
-- **Status:** Accepted · **Date:** 14 Oct 2026
+- **Status:** Accepted · **Date:** 14 Oct 2026 · **Gate revised by [ADR-0008](0008-aws-services-in-sprint.md) (5 Nov 2026)**
 
 ## Context
 Judges must be able to run or interact with a working build until 15 Dec 2026. PayPal webhooks need a public HTTPS

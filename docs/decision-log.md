@@ -3,6 +3,29 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 5 Nov 2026 — Sprint day 1
+
+- **Attack catalogue v0 frozen before any guard rule exists** → [evaluation plan](evaluation-plan.md). 260 synthetic
+  cases (210 attacks, 50 benign), 12 families; held-out split **by template** (90 cases, 34.6%) so held-out attacks use
+  techniques the rules were never tuned on; SHA-256 enforced by a test and by CI. Metrics, pass marks, baselines and
+  the keep-a-layer rule pre-registered in the same commit. A label audit refuses to build if a label breaks the policy.
+  *Changed:* the delivery-address hard limit compares street/city/postcode/country; a recipient-name change alone is
+  "ask" (found by the audit).
+- **Storage: PostgreSQL, budget reserved by one conditional UPDATE** → [ADR-0007](adr/0007-storage-postgres-atomic-reservation.md).
+- **AWS services pulled into the sprint** (Budgets first, IAM, Parameter Store, KMS, S3 Object Lock, Bedrock) →
+  [ADR-0008](adr/0008-aws-services-in-sprint.md). Revises ADR-0002's 30 Oct gate.
+- **PayPal client on the APIMatic-generated `paypal-server-sdk`, built with the PayPal Server SDK Context Plugin.**
+  Rules taken from the plugin's skills: (1) pass the sandbox environment explicitly and check the resolved URL
+  (`Environment.PRODUCTION == 0`); (2) build the client once and reuse it (token caching); (3) catch
+  `AuthValidationException` separately (not an `ApiException`); (4) POSTs are never auto-retried, so retries reuse the
+  same `PayPal-Request-Id`; (5) stub the OAuth token endpoint separately in tests. Found by our own tests: optional
+  fields must be omitted with `APIHelper.SKIP`, not `None` (which sends `null`); network errors must become
+  "outcome unknown, retry with the same request id". Friction log: [paypal-feedback.md](paypal-feedback.md).
+- **FakePayPal** (transport-level, stateful) copies the proven sandbox behaviours, for tests, keyless CI and demo mode.
+  It is not PayPal; no latency number is ever taken from it.
+- **Live smoke test can't run from Claude's sandboxed shells** (PayPal hosts aren't on their network allowlist); Aaron
+  runs `scripts/smoke_gateway.py` on his laptop.
+
 ## 14 Oct 2026 — Project start (Stage 0)
 
 - **Agent framework: Strands Agents for the demo agent; guard framework-free** → [ADR-0005](adr/0005-agent-framework-strands.md).

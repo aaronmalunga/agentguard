@@ -46,6 +46,17 @@ Evidence: [`spike/`](spike/). Plan and progress: [decision log](docs/decision-lo
 python spike/stage0_spike.py
 ```
 
+## Develop and test (no PayPal keys needed)
+
+```bash
+uv sync                      # Python 3.12, locked dependencies
+uv run pytest                # unit tests against FakePayPal, a stateful double of the proven sandbox behaviours
+uv run python eval/attacks/build_catalogue.py   # rebuilds the frozen attack catalogue; hashes must not change
+```
+
+With sandbox keys in `.env`: `uv run python scripts/smoke_gateway.py` runs the gateway against the real PayPal sandbox.
+Evaluation is pre-registered in [docs/evaluation-plan.md](docs/evaluation-plan.md).
+
 ## Limitations (honest by design)
 
 - Sandbox only; synthetic data; AP2-*style* mandates (not the full AP2 protocol).
