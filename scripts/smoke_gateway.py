@@ -28,6 +28,15 @@ def row(step, expected_ok, **fields):
 
 
 def main():
+    try:
+        steps()
+    except Exception as err:  # noqa: BLE001 -- record and still save, so a failure is evidence too
+        row("STOPPED EARLY", False, error=type(err).__name__, detail=str(err)[:200],
+            debug_id=getattr(err, "debug_id", None), http=getattr(err, "http_status", None))
+    return save()
+
+
+def steps():
     gw = PayPalGateway(load_settings())
 
     a = gw.authorize(amount="24.99", currency="USD", payment_source=sandbox_test_card(), request_id=rid(),
@@ -69,6 +78,9 @@ def main():
         if g.authorized:
             gw.void(g.authorization_id, request_id=rid())
 
+
+
+def save():
     ok = sum(r["as_expected"] for r in ROWS)
     print(f"\n{ok}/{len(ROWS)} steps as expected")
     out = Path(__file__).resolve().parents[1] / "spike" / "results"
