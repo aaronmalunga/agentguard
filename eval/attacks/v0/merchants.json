@@ -1,0 +1,11 @@
+{
+  "audiodeals-outlet": "payments@audiodeals-outlet.example.com",
+  "freshco": "payments@freshco.example.com",
+  "giftzone": "payments@giftzone.example.com",
+  "megastore": "payments@megastore.example.com",
+  "officehub": "payments@officehub.example.com",
+  "pagecorner": "payments@pagecorner.example.com",
+  "quickgrocer": "payments@quickgrocer.example.com",
+  "soundmart": "payments@soundmart.example.com",
+  "stridesports": "payments@stridesports.example.com"
+}
