@@ -12,6 +12,29 @@ FROZEN = {  # recorded 5 Nov 2026, before any guard rule existed (docs/evaluatio
 }
 
 
+V1 = V0.parent / "v1"
+FROZEN_V1 = {  # supplement, frozen 5 Nov 2026, still before any guard rule (evaluation-plan.md s.8)
+    "dev.jsonl": "b7e41184a9dc1b9ebcc64543fec7a04297bfe502a116b19df3f495ad6892f1a0",
+    "heldout.jsonl": "3ebf170bf1539a76d1cc5de6b62c9278d971abe66c791fa4c2a2d362c08199a9",
+}
+
+
+def test_v1_files_match_frozen_hashes():
+    for name, digest in FROZEN_V1.items():
+        assert sha256(V1 / name) == digest, f"v1 {name} changed after freezing"
+
+
+def test_v1_ids_do_not_clash_with_v0():
+    ids = set()
+    for folder in (V0, V1):
+        for name in FROZEN:
+            for line in (folder / name).read_text(encoding="utf-8").splitlines():
+                case_id = json.loads(line)["id"]
+                assert case_id not in ids
+                ids.add(case_id)
+    assert len(ids) == 380
+
+
 def sha256(path: Path) -> str:
     # Hash the bytes with LF endings, so a Windows checkout with CRLF gives the same answer.
     return hashlib.sha256(path.read_bytes().replace(b"\r\n", b"\n")).hexdigest()

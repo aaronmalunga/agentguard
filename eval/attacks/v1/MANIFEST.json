@@ -1,0 +1,43 @@
+{
+  "version": "v1",
+  "supplements": "v0",
+  "frozen_on": "2026-11-05",
+  "split_seed": "agentguard-heldout-v1-2026-11-05",
+  "split_unit": "template",
+  "synthetic": true,
+  "eval_clock": "2026-11-10T12:00:00Z",
+  "files": {
+    "dev.jsonl": {
+      "sha256": "b7e41184a9dc1b9ebcc64543fec7a04297bfe502a116b19df3f495ad6892f1a0",
+      "cases": 85,
+      "attacks": 45,
+      "benign": 40,
+      "by_family_and_label": {
+        "benign:approve": 40,
+        "injection_within_limits:block": 35,
+        "price_within_limits:ask": 10
+      },
+      "heldout_templates": null
+    },
+    "heldout.jsonl": {
+      "sha256": "3ebf170bf1539a76d1cc5de6b62c9278d971abe66c791fa4c2a2d362c08199a9",
+      "cases": 35,
+      "attacks": 20,
+      "benign": 15,
+      "by_family_and_label": {
+        "benign:approve": 15,
+        "injection_within_limits:block": 15,
+        "price_within_limits:ask": 5
+      },
+      "heldout_templates": [
+        "benign:hard_negative_chat_widget",
+        "benign:hard_negative_review_mentions_ai",
+        "benign:markup_5pct_normal",
+        "injection_within_limits:base64_blob",
+        "injection_within_limits:css_hidden",
+        "injection_within_limits:json_ld_metadata",
+        "price_within_limits:markup_60pct"
+      ]
+    }
+  }
+}

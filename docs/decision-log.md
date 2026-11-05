@@ -23,6 +23,10 @@ Every significant decision, pivot and correction, newest first. Real architectur
   "outcome unknown, retry with the same request id". Friction log: [paypal-feedback.md](paypal-feedback.md).
 - **FakePayPal** (transport-level, stateful) copies the proven sandbox behaviours, for tests, keyless CI and demo mode.
   It is not PayPal; no latency number is ever taken from it.
+- **Adversarial review of day 1** → [review-2026-11-05.md](review-2026-11-05.md). Main finding: every v0 block case
+  also broke a hard limit, so rules alone would score ≥ 84% by construction. *Changed:* froze supplement catalogue
+  **v1** (120 cases, all inside the limits; 35 held out) and an "AI-dependent subset" pass mark, still before any rule
+  exists. 13 more gaps logged with owners and days; 6 decisions left open for Aaron (D1–D6).
 - **Live smoke test can't run from Claude's sandboxed shells** (PayPal hosts aren't on their network allowlist); Aaron
   runs `scripts/smoke_gateway.py` on his laptop.
 

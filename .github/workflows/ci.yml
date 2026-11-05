@@ -23,4 +23,6 @@ jobs:
       - name: Unit tests (fake PayPal, no keys)
         run: uv run pytest --cov=agentguard --cov-report=term
       - name: Attack catalogue rebuilds to the frozen hashes
-        run: python eval/attacks/build_catalogue.py && git diff --exit-code eval/attacks/v0
+        run: |
+          python eval/attacks/build_catalogue.py && python eval/attacks/build_catalogue_v1.py
+          git diff --exit-code eval/attacks
