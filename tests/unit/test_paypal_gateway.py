@@ -79,6 +79,7 @@ def test_capture_replay_returns_same_capture_no_double_charge(gateway, fake):
     replay = gateway.capture(auth.authorization_id, request_id=key)
     assert first.succeeded and replay.succeeded
     assert first.capture_id == replay.capture_id
+    assert (first.http_status, replay.http_status) == (201, 200)   # as measured in the live sandbox
     assert len(fake.captures) == 1
 
 

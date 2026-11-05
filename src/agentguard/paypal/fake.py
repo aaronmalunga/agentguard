@@ -66,7 +66,8 @@ class FakePayPal(BaseAdapter):
         rid = headers.get("paypal-request-id")
         if rid and (path, rid) in self._by_request_id:   # idempotent replay
             status, saved = self._by_request_id[(path, rid)]
-            return self._respond(request, status, saved)
+            # Real sandbox (5 Nov): a replayed capture answers 200 with the original capture, not 201.
+            return self._respond(request, 200 if status == 201 else status, saved)
         status, out = self._route(request.method, path, body, rid)
         if rid and status < 400:
             self._by_request_id[(path, rid)] = (status, out)
