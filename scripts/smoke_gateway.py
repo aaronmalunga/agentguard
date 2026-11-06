@@ -13,7 +13,8 @@ from datetime import datetime
 from pathlib import Path
 
 from agentguard.config import load_settings
-from agentguard.paypal import PayPalError, PayPalGateway, sandbox_test_card, vaulted_card
+from agentguard.paypal import PayPalError, PayPalGateway, vaulted_card
+from agentguard.paypal.testing import sandbox_test_card
 
 ROWS = []
 

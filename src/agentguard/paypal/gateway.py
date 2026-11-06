@@ -26,7 +26,6 @@ from paypalserversdk.exceptions.api_exception import ApiException
 from paypalserversdk.http.auth.o_auth_2 import ClientCredentialsAuthCredentials
 from paypalserversdk.models.amount_with_breakdown import AmountWithBreakdown
 from paypalserversdk.models.capture_request import CaptureRequest
-from paypalserversdk.models.card_attributes import CardAttributes
 from paypalserversdk.models.card_request import CardRequest
 from paypalserversdk.models.card_stored_credential import CardStoredCredential
 from paypalserversdk.models.checkout_payment_intent import CheckoutPaymentIntent
@@ -36,11 +35,11 @@ from paypalserversdk.models.payment_source import PaymentSource
 from paypalserversdk.models.purchase_unit_request import PurchaseUnitRequest
 from paypalserversdk.models.stored_payment_source_payment_type import StoredPaymentSourcePaymentType
 from paypalserversdk.models.stored_payment_source_usage_type import StoredPaymentSourceUsageType
-from paypalserversdk.models.vault_instruction_base import VaultInstructionBase
 from paypalserversdk.paypal_serversdk_client import PaypalServersdkClient
 
 from agentguard.config import SANDBOX_HOST, SandboxOnlyError, Settings
 
+SUPPORTED_CURRENCIES = {"USD"}  # sandbox is US; money() assumes 2 decimal places (review B4)
 AUTHORIZED = "CREATED"  # PayPal's authorisation status for "funds held, ready to capture"
 
 
@@ -95,14 +94,6 @@ def vaulted_card(vault_id: str) -> PaymentSource:
             payment_initiator=PaymentInitiator.MERCHANT,
             payment_type=StoredPaymentSourcePaymentType.UNSCHEDULED,
             usage=StoredPaymentSourceUsageType.SUBSEQUENT)))
-
-
-def sandbox_test_card(name: str = "Alex Rivera", save: bool = False) -> PaymentSource:
-    """PayPal's PUBLIC sandbox test card (from PayPal's docs). Sandbox setup and tests only.
-    A name of "CCREJECT-REFUSED" makes the sandbox decline it."""
-    return PaymentSource(card=CardRequest(
-        name=name, number="4012888888881881", expiry="2030-12", security_code="123",
-        attributes=CardAttributes(vault=VaultInstructionBase(store_in_vault="ON_SUCCESS")) if save else APIHelper.SKIP))
 
 
 def money(amount: Decimal | str) -> str:
@@ -179,6 +170,8 @@ class PayPalGateway:
         """Create an AUTHORIZE order (funds held, not taken). Never CAPTURE here: holding is the point."""
         if not request_id:
             raise ValueError("request_id is required for money-moving calls")
+        if currency not in SUPPORTED_CURRENCIES:
+            raise ValueError(f"currency {currency!r} not supported (allowed: {sorted(SUPPORTED_CURRENCIES)})")
         body = OrderRequest(
             intent=CheckoutPaymentIntent.AUTHORIZE,
             purchase_units=[PurchaseUnitRequest(

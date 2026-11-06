@@ -6,9 +6,10 @@ import pytest
 import requests
 
 from agentguard.config import SandboxOnlyError, load_settings
-from agentguard.paypal import PayPalError, PayPalGateway, sandbox_test_card, vaulted_card
+from agentguard.paypal import PayPalError, PayPalGateway, vaulted_card
 from agentguard.paypal.fake import FakePayPal
 from agentguard.paypal.gateway import money
+from agentguard.paypal.testing import sandbox_test_card
 
 
 @pytest.fixture
@@ -162,3 +163,20 @@ def test_network_failure_becomes_paypal_error():
     with pytest.raises(PayPalError) as err:
         gw.capture("AUTH1", request_id=rid())
     assert "outcome unknown" in str(err.value) or "access token" in str(err.value)
+
+
+def test_only_usd_is_accepted(gateway, fake):
+    with pytest.raises(ValueError):
+        gateway.authorize(amount="1000", currency="JPY", payment_source=sandbox_test_card(), request_id=rid(),
+                          reference_id="x")
+    assert not [c for c in fake.calls if c["path"] != "/v1/oauth2/token"]
+
+
+def test_product_code_never_imports_the_test_card_helper():
+    """Review B2: card numbers stay out of product code."""
+    from pathlib import Path
+    src = Path(__file__).resolve().parents[2] / "src" / "agentguard"
+    offenders = [p.name for p in src.rglob("*.py") if p.name != "testing.py"
+                 and ("sandbox_test_card" in p.read_text(encoding="utf-8") or "4012888888881881" in
+                      p.read_text(encoding="utf-8"))]
+    assert offenders == []
