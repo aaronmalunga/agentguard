@@ -3,6 +3,14 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 6 Nov 2026 — Light day (token budget)
+
+- Closed review findings **A4** (money in integer cents), **B2** (card-number helper out of product code, enforced by a
+  test), **B4** (USD-only allowlist). 56 tests pass, 95% line coverage.
+- Community files: CONTRIBUTING, issue templates (including "attack that got through", the front door for outside
+  red-teaming), PR template.
+- **Schedule re-ordered:** heavy build moves to Sun 8 Nov (afternoon) → Wed 11 Nov; Fri/Sat stay light. See STATE.md.
+
 ## 5 Nov 2026 — Sprint day 1
 
 - **Attack catalogue v0 frozen before any guard rule exists** → [evaluation plan](evaluation-plan.md). 260 synthetic
