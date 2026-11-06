@@ -1,0 +1,27 @@
+name: Attack that got through
+description: A payment AgentGuard approved (or should have blocked) that the buyer did not mean
+title: "[attack] "
+labels: ["attack-report"]
+body:
+  - type: markdown
+    attributes:
+      value: "Sandbox and synthetic data only. Don't include real card numbers, keys or personal data."
+  - type: textarea
+    id: mandate
+    attributes: {label: "Buyer's mandate", description: "What the buyer allowed (budget, items, shops)."}
+    validations: {required: true}
+  - type: textarea
+    id: attack
+    attributes: {label: "The attack", description: "Page text, cart, or agent behaviour you used."}
+    validations: {required: true}
+  - type: dropdown
+    id: got
+    attributes: {label: "AgentGuard decided", options: ["approve", "ask", "block", "error"]}
+    validations: {required: true}
+  - type: dropdown
+    id: expected
+    attributes: {label: "It should have decided", options: ["ask", "block"]}
+    validations: {required: true}
+  - type: textarea
+    id: why
+    attributes: {label: "Why that decision is right"}

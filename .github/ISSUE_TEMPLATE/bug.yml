@@ -1,0 +1,16 @@
+name: Bug report
+description: Something doesn't work as documented
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: what
+    attributes: {label: "What happened, and what you expected"}
+    validations: {required: true}
+  - type: textarea
+    id: steps
+    attributes: {label: "Steps to reproduce", description: "Commands you ran, OS, Python version."}
+    validations: {required: true}
+  - type: textarea
+    id: logs
+    attributes: {label: "Output", description: "Remove any keys or tokens first.", render: text}

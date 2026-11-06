@@ -57,6 +57,8 @@ uv run python eval/attacks/build_catalogue.py   # rebuilds the frozen attack cat
 With sandbox keys in `.env`: `uv run python scripts/smoke_gateway.py` runs the gateway against the real PayPal sandbox.
 Evaluation is pre-registered in [docs/evaluation-plan.md](docs/evaluation-plan.md).
 
+Want to help or try to break it? See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Limitations (honest by design)
 
 - Sandbox only; synthetic data; AP2-*style* mandates (not the full AP2 protocol).
