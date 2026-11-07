@@ -3,6 +3,16 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 7 Nov 2026 — Light day
+
+- **Mandate model** (`agentguard.mandate`): immutable, versioned (`revise()`, `revoke()`), money in cents, inclusive
+  limits, timezone-aware dates, SHA-256 fingerprint of canonical JSON (64 chars, fits PayPal `custom_id`, decision D2).
+  All 380 catalogue mandates parse without changing meaning (tested).
+- **AWS moved after submission** → [ADR-0008 amendment](adr/0008-aws-services-in-sprint.md). Receipts use a local
+  Ed25519 key in the sprint.
+- **Competitor scan:** several entries already ship hold-then-capture/void and signed-intent ideas, so our edge is
+  measured evaluation; we make no "first/only" claims on shared ideas.
+
 ## 6 Nov 2026 — Light day (token budget)
 
 - Closed review findings **A4** (money in integer cents), **B2** (card-number helper out of product code, enforced by a

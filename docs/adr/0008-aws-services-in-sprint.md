@@ -1,6 +1,6 @@
 # ADR-0008: Pull selected AWS services into the sprint (revises ADR-0002's gate)
 
-- **Status:** Accepted · **Date:** 5 Nov 2026
+- **Status:** Accepted, **amended 7 Nov 2026** (see end) · **Date:** 5 Nov 2026
 - **Deciders:** Aaron (decision), Claude (options and analysis)
 - **Related:** ADR-0002 (Render + AWS; AWS gated on a 30 Oct core-flow checkpoint), ADR-0006 (LLM bake-off)
 
@@ -50,3 +50,10 @@ CloudWatch/X-Ray via ADOT, Athena, CDK.
 - Object Lock must be enabled when the bucket is created; choose governance mode (deletable by an admin) for the demo,
   so the bucket can be cleaned up after judging.
 - Current prices for KMS keys, requests and S3.
+
+## Amendment, 7 Nov 2026: AWS moves after submission
+Pressure-tested after the competitor scan and the token budget change: no judge or prize rewards AWS, the video won't
+show it, and it adds keys and setup while the core is unbuilt. **Decision (Aaron + Claude):** all AWS services in the
+table move to the post-submission showcase. During the sprint, Receipts of Intent are signed with a local Ed25519 key
+behind a signer interface, so KMS later is a configuration change, not a rewrite. The budget-alarm-first rule still
+applies the first time AWS is used.
