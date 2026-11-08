@@ -32,9 +32,10 @@ class FlowError(Exception):
 class PaymentService:
     def __init__(self, store: Store, gateway: PayPalGateway, *, mandates: dict[str, Mandate],
                  registry: dict[str, str], payment_source: Callable[[str], object],
-                 clock: Callable[[], datetime] = lambda: datetime.now(UTC), layers: tuple[str, ...] = LAYERS):
+                 clock: Callable[[], datetime] = lambda: datetime.now(UTC), layers: tuple[str, ...] = LAYERS,
+                 llm=None):
         self.store, self.gw, self.mandates, self.registry = store, gateway, mandates, registry
-        self.payment_source, self.clock, self.layers = payment_source, clock, layers
+        self.payment_source, self.clock, self.layers, self.llm = payment_source, clock, layers, llm
 
     # ------------------------------------------------------------------ agent side
     def submit(self, request: PaymentRequest, *, request_key: str, page_text: str = "") -> dict:
@@ -47,7 +48,7 @@ class PaymentService:
         b = self.store.budget(request.mandate_id) if mandate else {}
         committed = b.get("spent_cents", 0) + b.get("reserved_cents", 0)
         decision = evaluate(request, mandate, now=self.clock(), registry=self.registry, spent_cents=committed,
-                            page_text=page_text, layers=self.layers)
+                            page_text=page_text, layers=self.layers, llm=self.llm)
         amount = sum(line_total_cents(i.unit_price, i.quantity) for i in request.items)
         pid = "pay_" + uuid.uuid4().hex[:16]
         p = self.store.insert_payment(

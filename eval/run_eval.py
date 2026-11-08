@@ -25,6 +25,7 @@ from agentguard.mandate import Mandate
 from agentguard.money import to_cents
 
 CONFIGS = {"rules_only": ("rules",), "rules+detector": ("rules", "detector")}
+AI_CONFIG = ("rules+detector+ai", ("rules", "detector", "ai"))
 
 
 def wilson(k: int, n: int, z: float = 1.96):
@@ -47,13 +48,13 @@ def load(split: str):
     return cases
 
 
-def run_case(case, layers, registry):
+def run_case(case, layers, registry, llm=None):
     m = Mandate.from_catalogue(case["mandate"])
     req = PaymentRequest.model_validate(case["request"])
     now = datetime.fromisoformat(case["now"])
     t0 = time.perf_counter()
     d = evaluate(req, m, now=now, registry=registry, spent_cents=to_cents(case["mandate"]["spent_so_far"]),
-                 page_text=case["context"]["page_text"], layers=layers)
+                 page_text=case["context"]["page_text"], layers=layers, llm=llm)
     return d, (time.perf_counter() - t0) * 1000
 
 
@@ -86,6 +87,9 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--split", choices=["dev", "heldout"], default="dev")
     ap.add_argument("--reason", default="")
+    ap.add_argument("--ai", action="store_true", help="add the LLM layer (Gemini; answers cached in evidence/)")
+    ap.add_argument("--replay", action="store_true", help="AI answers from the cache only (no key, no calls)")
+    ap.add_argument("--min-interval", type=float, default=4.5, help="seconds between fresh AI calls (free tier)")
     args = ap.parse_args()
     if args.split == "heldout" and not args.reason:
         sys.exit("Held-out runs are logged looks. Give --reason.")
@@ -102,10 +106,23 @@ def main():
               "command": " ".join(["python", "eval/run_eval.py", *sys.argv[1:]]), "synthetic_data": True,
               "configs": {}}
     ai_dep = lambda r: (r["catalogue"] == "v0" and r["expected"] == "ask") or (r["catalogue"] == "v1" and r["is_attack"])
-    for name, layers in CONFIGS.items():
+    configs, llm = dict(CONFIGS), None
+    if args.ai or args.replay:
+        from dotenv import load_dotenv
+
+        from agentguard.ai.cache import CachedLLM
+        from agentguard.ai.llm import GeminiLLM
+        load_dotenv(ROOT.parent / ".env")
+        load_dotenv(ROOT / ".env")
+        inner = None if args.replay else GeminiLLM()
+        llm = CachedLLM(ROOT / "evidence" / "ai_cache.jsonl", inner,
+                        model=__import__("os").environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite"),
+                        min_interval_s=args.min_interval)
+        configs[AI_CONFIG[0]] = AI_CONFIG[1]
+    for name, layers in configs.items():
         rows, lat = [], []
         for c in cases:
-            d, ms = run_case(c, layers, registry)
+            d, ms = run_case(c, layers, registry, llm if "ai" in layers else None)
             lat.append(ms)
             rows.append({"id": c["id"], "catalogue": c["catalogue"], "family": c["family"],
                          "template": c["template"], "is_attack": c["is_attack"], "expected": c["expected_decision"],
@@ -123,6 +140,17 @@ def main():
             "latency_ms": {"p50": round(lat[len(lat) // 2], 3), "p95": round(lat[int(len(lat) * 0.95) - 1], 3),
                            "max": round(lat[-1], 3), "n": len(lat), "note": "guard in-process, no PayPal, no AI"},
             "cases": rows}
+        if "ai" in layers:
+            fresh = sorted(x["latency_ms"] for x in llm.fresh_calls)
+            result["configs"][name]["ai"] = {
+                "model": llm.model, "fresh_calls": len(fresh), "failures": llm.failures,
+                "schema_valid_rate": round(len(fresh) / (len(fresh) + llm.failures), 4) if fresh or llm.failures
+                else None,
+                "latency_ms_p50": fresh[len(fresh) // 2] if fresh else None,
+                "latency_ms_p95": fresh[max(int(len(fresh) * 0.95) - 1, 0)] if fresh else None,
+                "input_tokens": sum(x["input_tokens"] or 0 for x in llm.fresh_calls),
+                "output_tokens": sum(x["output_tokens"] or 0 for x in llm.fresh_calls),
+                "note": "latency from fresh calls only; cached replays excluded"}
     out = ROOT / "evidence" / "runs" / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}_{args.split}.json"
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
     if args.split == "heldout":

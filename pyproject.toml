@@ -10,6 +10,7 @@ dependencies = [
   "pydantic>=2.9",
   "pydantic-settings>=2.6",
   "paypal-server-sdk>=2.4,<3",
+  "google-genai>=1.0",
 ]
 
 [dependency-groups]

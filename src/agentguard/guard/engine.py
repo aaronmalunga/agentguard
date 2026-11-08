@@ -1,5 +1,11 @@
-"""Guard entry point: rules first (base decision), then later layers that may only escalate."""
+"""Guard entry point: rules first (base decision), then later layers that may only escalate.
 
+Layers: "rules" (deterministic), "detector" (local, no AI call), "ai" (LLM intent check, ADR-0006).
+The AI layer is skipped when the payment is already blocked (no point spending a call), and any AI failure
+becomes "ask the buyer".
+"""
+
+from dataclasses import asdict
 from datetime import datetime
 
 from agentguard.guard import detector, rules
@@ -7,14 +13,19 @@ from agentguard.guard.decision import Decision, combine, escalate
 from agentguard.guard.request import PaymentRequest
 from agentguard.mandate import Mandate
 
-LAYERS = ("rules", "detector")   # + "ai" once the LLM intent check is plugged in
+LAYERS = ("rules", "detector", "ai")
 
 
 def evaluate(request: PaymentRequest, mandate: Mandate | None, *, now: datetime, registry: dict[str, str],
-             spent_cents: int, page_text: str = "", layers: tuple[str, ...] = LAYERS) -> Decision:
+             spent_cents: int, page_text: str = "", layers: tuple[str, ...] = LAYERS, llm=None) -> Decision:
     decision = combine(rules.check(request, mandate, now=now, registry=registry, spent_cents=spent_cents),
                        verified_facts=rules.verified_facts(request, mandate, spent_cents),
                        agent_note=request.agent_note)
     if "detector" in layers:
         decision = escalate(decision, detector.scan(page_text))
+    if "ai" in layers and llm is not None and mandate is not None and decision.level != "block":
+        from agentguard.ai import intent
+        found, info = intent.check(llm, request, mandate, page_text)
+        decision = escalate(decision, found)
+        decision.ai_call = asdict(info) if info else {"error": "unavailable"}
     return decision

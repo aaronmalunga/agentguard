@@ -32,6 +32,7 @@ class Decision:
     findings: list[Finding] = field(default_factory=list)
     verified_facts: dict = field(default_factory=dict)   # shown on the approval screen (OWASP ASI09)
     agent_note: str | None = None                        # agent-written text: shown quoted, labelled unverified
+    ai_call: dict | None = None                          # model id, latency, tokens (evidence log)
 
     @property
     def eval_label(self) -> str:
@@ -52,6 +53,6 @@ def combine(findings: list[Finding], **extra) -> Decision:
 def escalate(decision: Decision, new: list[Finding]) -> Decision:
     """Add findings from a later layer. Can only raise the level (monotonic)."""
     merged = combine([*decision.findings, *new], verified_facts=decision.verified_facts,
-                     agent_note=decision.agent_note)
+                     agent_note=decision.agent_note, ai_call=decision.ai_call)
     assert RANK[merged.level] >= RANK[decision.level]
     return merged
