@@ -39,9 +39,10 @@ def wilson(k: int, n: int, z: float = 1.96):
 
 
 def load(split: str):
-    if split == "v2":   # test-only catalogue, never tuned on
-        rows = [json.loads(x) for x in (ROOT / "eval/attacks/v2/test.jsonl").read_text(encoding="utf-8").splitlines()]
-        return [{**c, "catalogue": "v2"} for c in rows]
+    if split in ("v2", "v3"):   # test-only catalogues, never tuned on
+        rows = [json.loads(x) for x in (ROOT / f"eval/attacks/{split}/test.jsonl").read_text(encoding="utf-8")
+                .splitlines()]
+        return [{**c, "catalogue": split} for c in rows]
     cases = []
     for version in ("v0", "v1"):
         for line in (ROOT / "eval" / "attacks" / version / f"{split}.jsonl").read_text(encoding="utf-8").splitlines():
@@ -88,13 +89,13 @@ def metrics(rows, subset=None):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--split", choices=["dev", "heldout", "v2"], default="dev")
+    ap.add_argument("--split", choices=["dev", "heldout", "v2", "v3"], default="dev")
     ap.add_argument("--reason", default="")
     ap.add_argument("--ai", action="store_true", help="add the LLM layer (Gemini; answers cached in evidence/)")
     ap.add_argument("--replay", action="store_true", help="AI answers from the cache only (no key, no calls)")
     ap.add_argument("--min-interval", type=float, default=4.5, help="seconds between fresh AI calls (free tier)")
     args = ap.parse_args()
-    if args.split in ("heldout", "v2") and not args.reason:
+    if args.split in ("heldout", "v2", "v3") and not args.reason:
         sys.exit("Held-out runs are logged looks. Give --reason.")
     registry = json.loads((ROOT / "eval" / "attacks" / "v0" / "merchants.json").read_text(encoding="utf-8"))
     cases = load(args.split)
@@ -108,9 +109,10 @@ def main():
               "reason": args.reason, "git_commit": commit, "src_dirty": dirty, "dataset_sha256": hashes,
               "command": " ".join(["python", "eval/run_eval.py", *sys.argv[1:]]), "synthetic_data": True,
               "configs": {}}
-    if (ROOT / "eval/attacks/v2/MANIFEST.json").exists():
-        hashes["v2"] = json.loads((ROOT / "eval/attacks/v2/MANIFEST.json").read_text())["files"]["test.jsonl"]["sha256"]
-    ai_dep = lambda r: r["catalogue"] == "v2" and r["is_attack"] or (r["catalogue"] == "v0" and r["expected"] == "ask") or (r["catalogue"] == "v1" and r["is_attack"])
+    for v in ("v2", "v3"):
+        if (ROOT / f"eval/attacks/{v}/MANIFEST.json").exists():
+            hashes[v] = json.loads((ROOT / f"eval/attacks/{v}/MANIFEST.json").read_text())["files"]["test.jsonl"]["sha256"]
+    ai_dep = lambda r: r["catalogue"] in ("v2", "v3") and r["is_attack"] or (r["catalogue"] == "v0" and r["expected"] == "ask") or (r["catalogue"] == "v1" and r["is_attack"])
     configs, llm = dict(CONFIGS), None
     if args.ai or args.replay:
         from dotenv import load_dotenv
@@ -159,7 +161,7 @@ def main():
                 "note": "latency from fresh calls only; cached replays excluded"}
     out = ROOT / "evidence" / "runs" / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}_{args.split}.json"
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
-    if args.split in ("heldout", "v2"):
+    if args.split in ("heldout", "v2", "v3"):
         with (ROOT / "evidence" / "heldout_looks.jsonl").open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps({"run_at": result["run_at"], "commit": commit, "reason": args.reason,
                                  "file": out.name}) + "\n")
