@@ -13,7 +13,7 @@ from typing import Protocol, TypeVar
 from pydantic import BaseModel, ValidationError
 
 T = TypeVar("T", bound=BaseModel)
-DEFAULT_MODEL = "gemini-2.5-flash-lite"   # ADR-0006 bake-off candidate; override with GEMINI_MODEL
+DEFAULT_MODEL = "gemini-3.5-flash-lite"   # 2.5-flash-lite is closed to new users (8 Nov); override with GEMINI_MODEL
 
 
 class AIUnavailable(Exception):
@@ -53,7 +53,7 @@ class GeminiLLM:
                 config=t.GenerateContentConfig(system_instruction=system, temperature=0, seed=7,
                                                response_mime_type="application/json",
                                                response_json_schema=schema.model_json_schema(),
-                                               max_output_tokens=600))
+                                               max_output_tokens=2048))
             obj = schema.model_validate_json(r.text or "")
         except ValidationError as e:
             raise AIUnavailable(f"model output failed the schema ({e.error_count()} errors)") from None

@@ -76,3 +76,11 @@ AI components may only **add** friction: approve → step-up → block. They nev
 - **T15:** whether new AWS accounts get free-tier credits applicable to Bedrock.
 - **T16:** Gemini free-tier data-use terms and rate limits.
 - **T17:** whether Strands' Gemini and OpenAI providers support the tool calling we need.
+
+## Amendment, 8 Nov 2026: model availability and budget
+- `gemini-2.5-flash-lite` now returns 404 "no longer available to new users" (live check, 8 Nov). The default
+  becomes **`gemini-3.5-flash-lite`**, the current lite model the key can access. Model ID stays configurable
+  (`GEMINI_MODEL`).
+- No budget for prepaid OpenAI/Anthropic credits: the three-vendor bake-off is reduced to the free routes (Gemini via
+  AI Studio; optionally an OpenAI model via GitHub Models if time allows). Recorded here before any bake-off run, so
+  the selection rule (cheapest with >= 95% schema-valid output) is unchanged and applied only to models actually tested.

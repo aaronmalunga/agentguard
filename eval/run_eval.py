@@ -116,7 +116,7 @@ def main():
         load_dotenv(ROOT / ".env")
         inner = None if args.replay else GeminiLLM()
         llm = CachedLLM(ROOT / "evidence" / "ai_cache.jsonl", inner,
-                        model=__import__("os").environ.get("GEMINI_MODEL", "gemini-2.5-flash-lite"),
+                        model=__import__("os").environ.get("GEMINI_MODEL", "gemini-3.5-flash-lite"),
                         min_interval_s=args.min_interval)
         configs[AI_CONFIG[0]] = AI_CONFIG[1]
     for name, layers in configs.items():
