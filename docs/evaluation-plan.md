@@ -120,7 +120,7 @@ hand-labelled explanations is measured (Cohen's kappa) and reported.
 split is firmness (blocks instead of asks), not extra catch, because held-out has no meaning-level cases (look #1
 note). Consequences, all pre-registered rules applied as written:
 - The AI layer **does not pass** the keep-a-layer rule on held-out; it is reported as an ablation, not as proven value.
-- The AI path misses the latency mark. Per s.6 it should run only on held payments; decision D12 (open, Aaron).
+- The AI path misses the latency mark. Per s.6 it should run only on held payments. **Decision D12 (Aaron, 8 Nov): keep it before PayPal**, reported as a deviation (ADR-0006 amendment); both latencies are published.
 - Next: catalogue **v2** (independent wording + meaning-level cases, partial-cart cases labelled explicitly before any
   run) is the deciding test for the AI layer.
 

@@ -5,6 +5,9 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 8 Nov 2026 — Core guard + held-out look #1
 
+- **Held-out look #2 (AI):** 3 pass marks met, 3 not (step-ups 20%, keep-a-layer, AI latency), reported as written.
+- **D12 (Aaron): AI check stays before PayPal**, a recorded deviation from the latency fallback → ADR-0006 amendment.
+
 - **AI layer live (Gemini, `gemini-3.5-flash-lite`)** after 4 fixes in 20 minutes: closed model, timeout minimum,
   a hallucinated "followed the page" claim, and slow "thinking". Full record: [ai-integration-log.md](ai-integration-log.md).
 

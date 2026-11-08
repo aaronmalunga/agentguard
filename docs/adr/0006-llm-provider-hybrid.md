@@ -84,3 +84,14 @@ AI components may only **add** friction: approve → step-up → block. They nev
 - No budget for prepaid OpenAI/Anthropic credits: the three-vendor bake-off is reduced to the free routes (Gemini via
   AI Studio; optionally an OpenAI model via GitHub Models if time allows). Recorded here before any bake-off run, so
   the selection rule (cheapest with >= 95% schema-valid output) is unchanged and applied only to models actually tested.
+
+## Amendment, 8 Nov 2026: the AI check runs before PayPal (decision D12, approved by Aaron)
+- **Change:** the original design kept hosted LLM calls out of the guard's decision path (p95 < 300 ms). Measured on
+  held-out look #2, the AI intent check takes p50 1,090 ms / p95 1,741 ms. Following the pre-registered fallback would
+  run it only on payments already held, so normal-looking carts (where "wrong item, right category" hides) would skip it.
+- **Decision:** keep the AI check **before** authorisation for every payment the rules haven't already blocked.
+- **Why:** blocking before money moves is the product's point; agent checkouts aren't a human waiting at a button;
+  PayPal's own calls take 1–4 s (measured), so ~1 s more is the same order. The rules + detector path stays < 1 ms.
+- **Reported openly:** the 300 ms mark is met by the deterministic guard and **not** by the AI path; both numbers are
+  published. This is a deviation from the pre-registered fallback, recorded here before any further held-out look.
+- **Safety unchanged:** AI timeout (15 s) or error → ask the buyer; AI can only escalate.
