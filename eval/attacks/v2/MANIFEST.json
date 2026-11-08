@@ -1,0 +1,25 @@
+{
+  "version": "v2",
+  "frozen_on": "2026-11-08",
+  "kind": "test-only (never tuned on)",
+  "synthetic": true,
+  "paraphrase_model": "gemma-4-31b-it",
+  "paraphrases_used": 3,
+  "paraphrases_sha256": "6a794813aa85bb51d56e0167057fc0c8f5c9969954257b19b2ec05472282e4ab",
+  "files": {
+    "test.jsonl": {
+      "sha256": "4584b5677a894156bb32862fd03f67e6393c192f4c43b1357028de31b4361662",
+      "cases": 82,
+      "attacks": 28,
+      "benign": 54,
+      "by_family_and_label": {
+        "agent_note_pressure:ask": 5,
+        "benign_v2:approve": 50,
+        "natural_injection:block": 14,
+        "natural_injection_resisted:ask": 4,
+        "partial_cart:approve": 4,
+        "subtle_swap:ask": 5
+      }
+    }
+  }
+}
