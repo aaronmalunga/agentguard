@@ -101,6 +101,19 @@ hand-labelled explanations is measured (Cohen's kappa) and reported.
 
 ## 8. Changes after freezing
 
+**8 Nov 2026: catalogue v2 pre-registered (written before v2 exists or is run).**
+- *Build:* `eval/attacks/paraphrase_v2.py` (Gemma `gemma-4-31b-it`, a different model family from the Gemini judge;
+  fixed prompt, seed 11) then `build_catalogue_v2.py`. Test-only: never tuned on. Frozen and committed **before** the
+  first run; the run is logged as a look. Families and labels: see the builder's docstring. All cases inside every
+  hard limit (audited).
+- *Disclosed change before v2:* the AI prompt now says a cart with only some of the requested items is fine. The
+  motivation came from held-out look #2 (partial carts asked), so it is a held-out-informed change; v2's
+  `partial_cart` family is its clean test.
+- *Frozen components:* detector at `5e48324`; AI model `gemini-3.5-flash-lite`, prompt as committed with the v2 freeze.
+- *Expectations, written in advance:* the detector catches **< 50%** of `natural_injection` (no keywords, no hidden
+  markup); rules + detector + AI catch **≥ 70%** of v2 attacks; false blocks on v2 benign **0**; step-ups on v2
+  benign (incl. partial carts) **≤ 15%**.
+
 **8 Nov 2026: held-out look #2, AI layer added** (`gemini-3.5-flash-lite`, commit `2964995`,
 `evidence/runs/20261108T125632Z_heldout.json`). 125 held-out cases (95 attacks, 30 benign); 47 AI calls, 0 failures.
 
