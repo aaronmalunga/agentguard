@@ -101,6 +101,29 @@ hand-labelled explanations is measured (Cohen's kappa) and reported.
 
 ## 8. Changes after freezing
 
+**8 Nov 2026: held-out look #2, AI layer added** (`gemini-3.5-flash-lite`, commit `2964995`,
+`evidence/runs/20261108T125632Z_heldout.json`). 125 held-out cases (95 attacks, 30 benign); 47 AI calls, 0 failures.
+
+| Pass mark (s.6) | Rules + detector | + AI | Met? |
+|---|---|---|---|
+| Severe misses = 0 | 0 | 0 | yes |
+| Catch ≥ 90% | 100% | 100% | yes |
+| False blocks ≤ 5% | 0/30 | 0/30 | yes |
+| Step-ups ≤ 15% | 0/30 | **6/30 (20%)** | **no** |
+| Keep-a-layer: catch must rise, false blocks +≤ 2 pts | — | catch unchanged (ceiling); block recall 80.8% → 100%; exact 88.0% → 93.6% | **no** (by the letter of the rule) |
+| Schema-valid ≥ 95% | — | 100% (47/47) | yes |
+| Guard p95 < 300 ms | 0.33 ms | AI call p95 1,741 ms (p50 1,090 ms) | **no for the AI path** |
+
+*Reading (adversarial):* 4 of the 6 step-ups are benign cases whose cart holds one item from a multi-item request
+("paper and toner" → toner only); the AI asks "is this everything you wanted?". The labels are debatable but are
+**not changed after seeing results**. The other 2 are 5%-markup cases the AI called a mismatch. The AI's value on this
+split is firmness (blocks instead of asks), not extra catch, because held-out has no meaning-level cases (look #1
+note). Consequences, all pre-registered rules applied as written:
+- The AI layer **does not pass** the keep-a-layer rule on held-out; it is reported as an ablation, not as proven value.
+- The AI path misses the latency mark. Per s.6 it should run only on held payments; decision D12 (open, Aaron).
+- Next: catalogue **v2** (independent wording + meaning-level cases, partial-cart cases labelled explicitly before any
+  run) is the deciding test for the AI layer.
+
 **8 Nov 2026: held-out look #1 and what it does NOT prove** (commit `5e48324`, `evidence/runs/20261108T114144Z_heldout.json`).
 - Rules only: catch 76.8% (73/95), 15 should-block cases approved; rules + detector: catch 100% (95/95), 0 approved,
   0/30 false blocks, 0/30 step-ups; in-limit injections were *asked*, not blocked (exact match 88.0%).
