@@ -19,6 +19,7 @@ made, the way a sceptical judge, security reviewer or customer would. Started 5 
 | 5 Nov 2026 | [review-2026-11-05.md](review-2026-11-05.md) | 22 | 3 (rules-only ceiling → catalogue v1; smoke test saves on failure; fake's replay status) | D1–D4 approved by Aaron 15:24; D5–D6 deferred | Froze 120 in-limit attack cases **before any rule existed**, so the AI is judged where rules can't see |
 | 8 Nov 2026 | Full requirements + criteria review (project hub `FOOLPROOF_REVIEW.md`) | 12 risks ranked | — (review before the build) | D7–D11 proposed | Found that AI must do meaningful work *in the product* (Stage 1), so AI moves to the first build item; new safeguards: approval screens resist manipulation (OWASP ASI09), threat model mapped to the OWASP Top 10 for Agentic Applications 2026 |
 | 8 Nov 2026 (pm) | Held-out look #1 (`docs/evaluation-plan.md` s.8) | 2 (lucky split; shared attack wording) | Detector frozen at `5e48324`; v2 independent-wording catalogue pre-registered | — | Turned a 100% score into an honest claim and a stronger next test |
+| 8 Nov 2026 (14:23) | First live AI run (`docs/ai-integration-log.md`) | 3 (hallucinated page claim; missed block; 7–11 s latency) | 3 fixed in 4 minutes | — | Rules around the model: verify its claims in code; block only when two layers agree |
 
 ## Why we do this
 Judges aren't required to run the project, so every claim must survive a reader who assumes it is wrong. Finding our

@@ -5,6 +5,9 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 8 Nov 2026 — Core guard + held-out look #1
 
+- **AI layer live (Gemini, `gemini-3.5-flash-lite`)** after 4 fixes in 20 minutes: closed model, timeout minimum,
+  a hallucinated "followed the page" claim, and slow "thinking". Full record: [ai-integration-log.md](ai-integration-log.md).
+
 - **Requirements review:** the official guide says AI "must do meaningful work in the experience or functionality",
   so the AI layer is the next build item (Devpost early check flagged it). Hub: `FOOLPROOF_REVIEW.md`.
 - **Guard core built:** rules engine, local hidden-instruction detector, monotonic levels approve < hold < ask_first
