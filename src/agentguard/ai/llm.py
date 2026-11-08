@@ -62,7 +62,7 @@ class GeminiLLM:
         def attempt():
             try:
                 return call(t.ThinkingConfig(thinking_level=self.thinking) if self.thinking else None)
-            except Exception as e:  # noqa: BLE001 -- model rejects this thinking level: retry without it
+            except Exception as e:
                 if "thinking" not in str(e).lower():
                     raise
                 self.thinking = None
@@ -70,7 +70,7 @@ class GeminiLLM:
         try:
             try:
                 r = attempt()
-            except Exception as e:  # noqa: BLE001 -- one retry for brief provider trouble only
+            except Exception as e:
                 if not any(x in str(e) for x in TRANSIENT):
                     raise
                 time.sleep(2)
