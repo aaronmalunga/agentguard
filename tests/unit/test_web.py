@@ -257,3 +257,22 @@ def test_recorded_answers_replay_with_label_and_new_input_goes_live(tmp_path):
     assert p["ai"]["provider"] == "recorded 2026-11-09" and p["ai"]["latency_ms"] == 7 and live2.calls == 0
     c.post("/api/demo/run", json={"scenario": "inflated"}, headers=BUYER)
     assert live2.calls == 1                                   # not recorded -> live model
+
+
+def test_proof_reads_committed_runs_and_web_app_is_served():
+    c, _ = client()
+    d = c.get("/api/proof").json()
+    v3 = next(s for s in d["sets"] if s["set"] == "v3")
+    assert v3["synthetic"] is True and v3["frozen_at_commit"] == "608d01d"
+    assert v3["configs"]["rules_only"]["caught"] == 0 and v3["configs"]["rules+detector+ai"]["caught"] == 71
+    assert d["fees"]["refund_fee_lost_cents"] == 153 and d["fees"]["void_fee_cents"] == 0
+    page = c.get("/")
+    assert page.status_code == 200 and "Did you mean this payment?" in page.text
+    assert c.get("/static/vendor/ag-grid/ag-grid-community.min.noStyle.js").status_code == 200
+
+
+def test_trace_records_every_layer_with_timing():
+    c, _ = client()
+    p = c.post("/api/demo/run", json={"scenario": "normal"}, headers=BUYER).json()["payment"]
+    assert [t["layer"] for t in p["trace"]] == ["catalogue", "rules", "detector", "ai"]
+    assert all(t["ms"] >= 0 for t in p["trace"])

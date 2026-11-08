@@ -28,6 +28,11 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **v3 result:** all 5 pre-registered v3 expectations met (rules 0/75 → + AI 71/75, 0 severe, 0/42 false blocks). The
   regression look #3 is reported as a **fail-safe** measurement, not an AI one (all AI calls hit the Gemini free
   quota, 429). See evaluation-plan s.8.
+- **Web app screens built** (style C/A2, Wide steel type, light and dark): Shop and agent (scenarios, paste-your-own
+  page, decision trace with per-layer timings, buyer phone card), Approvals, Console (AG Grid: filters, search, approve /
+  reject in the grid, full record panel), Your rules (plain English → AI draft → approve as a new mandate version),
+  Proof (bars read from committed runs, fee comparison, receipt check with a tamper button, log check). Design checked
+  with Hallmark sloplint: 0 FAIL / 0 REFLEX, 2 waivers recorded. Review: [review-2026-11-08-ui.md](review-2026-11-08-ui.md).
 - **Type (Aaron, 17:23): "Wide steel"**: Michroma (wordmark and short headings, matching the logo's lettering) +
   Reddit Sans (everything else; tabular figures for money and timings). Two families, both SIL OFL, self-hosted with
   AG Grid Community 32.3.3 (MIT) under `web/static/vendor/` so the judge demo depends on no CDN.

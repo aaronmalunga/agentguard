@@ -43,7 +43,12 @@ from agentguard.paypal import PayPalGateway, vaulted_card
 from agentguard.web import demo
 
 STATIC = Path(__file__).parent / "static"
-DEMO_ANSWERS = Path(__file__).parent / "demo_ai_answers.jsonl"   # made by scripts/record_demo_answers.py
+DEMO_ANSWERS = Path(__file__).parent / "demo_ai_answers.jsonl"
+RUNS = Path(__file__).resolve().parents[3] / "evidence" / "runs"
+PROOF_RUNS = {"v3": "20261108T140724Z_v3.json", "v2": "20261108T132205Z_v2.json"}   # frozen test-only sets
+FEE_EVIDENCE = {"capture_cents": 4000, "refund_fee_lost_cents": 153, "void_fee_cents": 0,
+                "source": "PayPal sandbox merchant account, 14 Oct 2026 (US sandbox; live fees vary)",
+                "evidence": "docs/evidence/*fee.png, *void-no-fee.png"}   # made by scripts/record_demo_answers.py
 DEMO_TOKENS = {"agent": "demo-agent-token", "buyer": "demo-buyer-token"}
 
 
@@ -309,6 +314,27 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         return {**b, "left": fmt(b["budget_cents"] - b["spent_cents"] - b["reserved_cents"])}
 
     # ---------------------------------------------------------------- evidence
+    @app.get("/api/proof", tags=["evidence"])
+    def proof():
+        """Measured results, read from the committed evaluation runs (never typed in by hand)."""
+        sets = []
+        for name, fname in PROOF_RUNS.items():
+            f = RUNS / fname
+            if not f.exists():
+                continue
+            d = json.loads(f.read_text(encoding="utf-8"))
+            cfg = {}
+            for key, c in d["configs"].items():
+                a = c["all"]
+                cfg[key] = {k: a.get(k) for k in ("cases", "attacks", "benign", "caught", "catch_rate", "catch_ci95",
+                                                   "severe_misses", "false_blocks", "step_ups")}
+                if "ai" in c:
+                    cfg[key]["ai"] = {k: c["ai"].get(k) for k in ("model", "latency_ms_p50", "latency_ms_p95",
+                                                                  "fresh_calls", "failures")}
+            sets.append({"set": name, "file": f"evidence/runs/{fname}", "frozen_at_commit": d.get("git_commit"),
+                         "synthetic": d.get("synthetic_data", True), "run_at": d.get("run_at"), "configs": cfg})
+        return {"sets": sets, "fees": FEE_EVIDENCE}
+
     @app.get("/api/payments/{pid}/receipt", tags=["evidence"], dependencies=[buyer])
     def receipt(pid: str):
         one(pid)
