@@ -124,6 +124,7 @@ class FakePayPal(BaseAdapter):
         order = {"id": order_id, "intent": "AUTHORIZE", "status": "COMPLETED",
                  "payment_source": {"card": card_out},
                  "purchase_units": [{"reference_id": unit.get("reference_id", "default"), "amount": amount,
+                                     **({"custom_id": unit["custom_id"]} if "custom_id" in unit else {}),
                                      "payments": {"authorizations": [auth]}}]}
         self.orders[order_id] = order
         return 201, order  # NB: 201 even when DENIED, exactly like the real sandbox

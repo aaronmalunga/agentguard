@@ -166,7 +166,8 @@ class PayPalGateway:
         return response, round((time.perf_counter() - start) * 1000)
 
     def authorize(self, *, amount: Decimal | str, currency: str, payment_source: PaymentSource,
-                  request_id: str, reference_id: str, description: str = "") -> AuthorizationResult:
+                  request_id: str, reference_id: str, description: str = "",
+                  custom_id: str = "") -> AuthorizationResult:
         """Create an AUTHORIZE order (funds held, not taken). Never CAPTURE here: holding is the point."""
         if not request_id:
             raise ValueError("request_id is required for money-moving calls")
@@ -176,6 +177,7 @@ class PayPalGateway:
             intent=CheckoutPaymentIntent.AUTHORIZE,
             purchase_units=[PurchaseUnitRequest(
                 reference_id=reference_id, description=description[:127] or APIHelper.SKIP,
+                custom_id=custom_id[:127] or APIHelper.SKIP,   # receipt / mandate fingerprint (decision D2)
                 amount=AmountWithBreakdown(currency_code=currency, value=money(amount)))],
             payment_source=payment_source)
         resp, ms = self._call(self._client.orders.create_order,
