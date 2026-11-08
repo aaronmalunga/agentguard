@@ -5,6 +5,10 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 8 Nov 2026 — Core guard + held-out look #1
 
+- **Catalogue v2 (harder, test-only, frozen before running):** rules and detector caught 0/28; with the AI 27/28,
+  0 severe misses, 0/54 false blocks, 9.3% step-ups. All pre-registered v2 expectations met; the AI layer earns its
+  place on v2. Weak spots recorded: most natural injections held rather than blocked; one detector false positive.
+
 - **Held-out look #2 (AI):** 3 pass marks met, 3 not (step-ups 20%, keep-a-layer, AI latency), reported as written.
 - **D12 (Aaron): AI check stays before PayPal**, a recorded deviation from the latency fallback → ADR-0006 amendment.
 
