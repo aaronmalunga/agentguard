@@ -1,0 +1,67 @@
+{
+  "ran_at": "2026-11-08T13:45:59+02:00",
+  "via": "agentguard.paypal.PayPalGateway (paypal-server-sdk)",
+  "results": [
+    {
+      "step": "authorise (approve path)",
+      "as_expected": true,
+      "http": 201,
+      "status": "CREATED",
+      "ms": 4749
+    },
+    {
+      "step": "capture",
+      "as_expected": true,
+      "http": 201,
+      "status": "COMPLETED",
+      "ms": 2332
+    },
+    {
+      "step": "capture replay, same key",
+      "as_expected": true,
+      "same_capture": true,
+      "http": 200,
+      "ms": 1410
+    },
+    {
+      "step": "capture again, new key -> refused",
+      "as_expected": true,
+      "http": 422,
+      "issue": "AUTHORIZATION_ALREADY_CAPTURED: Authorization has already been captured."
+    },
+    {
+      "step": "authorise (hold path)",
+      "as_expected": true,
+      "http": 201,
+      "status": "CREATED",
+      "ms": 2822
+    },
+    {
+      "step": "void",
+      "as_expected": true,
+      "http": 200,
+      "status": "VOIDED",
+      "ms": 1209
+    },
+    {
+      "step": "decline: HTTP 201 but not authorised",
+      "as_expected": true,
+      "http": 201,
+      "status": "DENIED",
+      "ms": 2816
+    },
+    {
+      "step": "vault on success",
+      "as_expected": true,
+      "vault_id_present": true,
+      "ms": 3906
+    },
+    {
+      "step": "agent charge via vault, no buyer",
+      "as_expected": true,
+      "http": 201,
+      "status": "CREATED",
+      "ms": 3022
+    }
+  ]
+}
