@@ -233,3 +233,6 @@ secrets/
 mlruns/
 desktop.ini
 Thumbs.db
+
+# AI smoke diagnostics (local only)
+evidence/ai_smoke_last.txt

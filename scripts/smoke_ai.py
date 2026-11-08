@@ -15,7 +15,20 @@ ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT.parent / ".env")
 load_dotenv(ROOT / ".env")
 
+import builtins
+
 from agentguard.ai import intent, mandate_parser
+
+LOG = ROOT / "evidence" / "ai_smoke_last.txt"   # Claude reads this file; it never contains the key
+LOG.parent.mkdir(exist_ok=True)
+LOG.write_text("", encoding="utf-8")
+_print = builtins.print
+
+
+def print(*args, **kw):
+    _print(*args, **kw)
+    with LOG.open("a", encoding="utf-8") as fh:
+        _print(*args, file=fh)
 from agentguard.ai.llm import AIUnavailable, GeminiLLM
 from agentguard.guard.request import PaymentRequest
 from agentguard.mandate import Address, Mandate
@@ -39,6 +52,12 @@ def main():
         print("[FAIL]", e)
         return 1
     print("model:", llm.model)
+    try:
+        names = [m.name for m in llm._client.models.list()]
+        flash = sorted(n.removeprefix("models/") for n in names if "flash" in n or "gemma" in n)
+        print("models this key can see (flash/gemma):", ", ".join(flash[:25]) or "none")
+    except Exception as e:  # noqa: BLE001 -- diagnostics only
+        print("[FAIL] could not list models:", type(e).__name__, str(e)[:300])
     ok = 0
     try:
         res, info = mandate_parser.parse(llm, "Get me one pair of wireless noise-cancelling earbuds under $80 "
