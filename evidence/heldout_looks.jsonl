@@ -2,3 +2,5 @@
 {"run_at": "2026-11-08T12:53:02+00:00", "commit": "2964995", "reason": "Held-out look #2: rules+detector+AI (gemini-3.5-flash-lite), after dev evaluation; detector frozen at 5e48324", "file": "20261108T125632Z_heldout.json"}
 {"run_at": "2026-11-08T13:16:20+00:00", "commit": "cc8aa24", "reason": "Catalogue v2 first and only pre-registered run: harder, independently worded, test-only", "file": "20261108T132205Z_v2.json"}
 {"run_at": "2026-11-08T13:33:30+00:00", "commit": "4692e93", "reason": "Offline check after disclosed v2-informed detector fix (rules+detector only, no AI calls); not a clean test", "file": "20261108T133330Z_v2.json"}
+{"run_at": "2026-11-08T13:57:34+00:00", "commit": "608d01d", "reason": "Catalogue v3 pre-registered run: tests the disclosed v2 fixes and new attack styles", "file": "20261108T140724Z_v3.json"}
+{"run_at": "2026-11-08T14:17:22+00:00", "commit": "00b1a8e", "reason": "Held-out look #3: regression check after disclosed v2-informed fixes (56d3767)", "file": "20261108T142055Z_heldout.json"}
