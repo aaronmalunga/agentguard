@@ -34,7 +34,7 @@ class LLM(Protocol):
 
 
 class GeminiLLM:
-    def __init__(self, api_key: str | None = None, model: str | None = None, timeout_ms: int = 8000):
+    def __init__(self, api_key: str | None = None, model: str | None = None, timeout_ms: int = 15000):  # Gemini rejects deadlines under 10 s
         from google import genai
         from google.genai import types
         key = api_key or os.environ.get("GEMINI_API_KEY")
