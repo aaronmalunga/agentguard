@@ -23,7 +23,7 @@ class Finding:
     level: Level
     reason: str                  # plain English, written by AgentGuard (never by the agent)
     would_pass_if: str | None    # counterfactual (N4): what would make this pass
-    source: Literal["rules", "detector", "ai"] = "rules"
+    source: Literal["rules", "catalogue", "detector", "ai"] = "rules"
 
 
 @dataclass

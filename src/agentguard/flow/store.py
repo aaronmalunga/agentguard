@@ -7,6 +7,7 @@ Never release a reservation when the PayPal outcome is unknown.
 
 import sqlite3
 import threading
+from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime
 
@@ -20,7 +21,11 @@ CREATE TABLE IF NOT EXISTS payments (
   mandate_fingerprint TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, level TEXT NOT NULL,
   status TEXT NOT NULL, findings_json TEXT NOT NULL, facts_json TEXT NOT NULL, agent_note TEXT,
   paypal_order_id TEXT, paypal_authorization_id TEXT, paypal_capture_id TEXT, paypal_status TEXT,
-  paypal_debug_id TEXT, created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+  paypal_debug_id TEXT, ai_json TEXT, cart_json TEXT, page_source TEXT, agent_id TEXT,
+  created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
+CREATE TABLE IF NOT EXISTS audit (
+  seq INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL, payment_id TEXT, data_json TEXT NOT NULL,
+  prev_hash TEXT NOT NULL, hash TEXT NOT NULL UNIQUE);
 """
 
 
@@ -51,6 +56,11 @@ class Store:
         with self._tx() as db:
             db.execute("INSERT OR IGNORE INTO budgets (mandate_id, budget_cents, spent_cents) VALUES (?,?,?)",
                        (mandate_id, budget_cents, spent_cents))
+
+    def set_budget(self, mandate_id: str, budget_cents: int):
+        """New mandate version with a different budget. The CHECK constraint refuses a budget below what's used."""
+        with self._tx() as db:
+            db.execute("UPDATE budgets SET budget_cents=? WHERE mandate_id=?", (budget_cents, mandate_id))
 
     def budget(self, mandate_id: str) -> dict:
         row = self._db.execute("SELECT * FROM budgets WHERE mandate_id=?", (mandate_id,)).fetchone()
@@ -100,3 +110,23 @@ class Store:
 
     def payments(self) -> list[dict]:
         return [dict(r) for r in self._db.execute("SELECT * FROM payments ORDER BY created_at DESC, id DESC")]
+
+    # ---- audit log (hash chain; see agentguard.flow.audit). Append-only: there is no update or delete method.
+    def append_audit(self, kind: str, payment_id: str | None, data_json: str,
+                     link: Callable[[str, dict], str]) -> dict:
+        """Read the chain head and write the next entry in ONE transaction, so two writers can't fork the chain."""
+        with self._tx() as db:
+            last = db.execute("SELECT seq, hash FROM audit ORDER BY seq DESC LIMIT 1").fetchone()
+            seq, prev = (last["seq"] + 1, last["hash"]) if last else (1, "0" * 64)
+            rec = {"seq": seq, "at": now(), "kind": kind, "payment_id": payment_id, "data_json": data_json}
+            h = link(prev, rec)
+            db.execute("INSERT INTO audit (seq, at, kind, payment_id, data_json, prev_hash, hash) "
+                       "VALUES (?,?,?,?,?,?,?)", (seq, rec["at"], kind, payment_id, data_json, prev, h))
+        return {**rec, "prev_hash": prev, "hash": h}
+
+    def audit_entries(self, payment_id: str | None = None) -> list[dict]:
+        if payment_id:
+            rows = self._db.execute("SELECT * FROM audit WHERE payment_id=? ORDER BY seq", (payment_id,))
+        else:
+            rows = self._db.execute("SELECT * FROM audit ORDER BY seq")
+        return [dict(r) for r in rows]

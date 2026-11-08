@@ -3,6 +3,33 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 8 Nov 2026 (evening) — Web API, live-flow safeguards, v3 result
+
+- **D13 (Aaron, 16:05): front-end style C** (product-grade: decision trace with model + latency, phone-style
+  "Is this what you meant?" card), **with both light and dark mode** (one set of colour tokens; follows the device,
+  plus a toggle). Additions accepted for later (16:11): a reactive "currency rain" driven by real decisions only
+  (approve/hold/block; off on approval and console screens; off under reduce-motion), and the Impeccable detector
+  (`npx impeccable detect`, 62 deterministic rules) as a design audit with before/after counts. Not adopted: the rest
+  of the Impeccable skill pack and its live mode (runs an agent CLI with sandboxing off).
+- **Web API (FastAPI)** over the existing engine: 20 endpoints, OpenAPI at `/docs`. Separate agent and buyer roles
+  (agent can only ask to pay; ASI02/ASI03). One error shape. `Idempotency-Key` required on payments.
+- **D3 enforced in the live flow:** the agent sends SKU + quantity only; titles, categories, prices and the payee
+  account come from the merchant catalogue and registry. An agent-stated price or title that differs ⇒ ask first.
+  Unknown or out-of-stock products ⇒ block, PayPal never called. **D4:** page text is referenced by `page_id` from
+  AgentGuard's own capture; the agent can't send page text.
+- **Hash-chained decision log** (`flow/audit.py`): every state change appends one SHA-256-linked entry in the same
+  transaction as the head read; `/api/audit/verify` finds the first altered entry. Limit disclosed (whole-chain
+  rewrite) → head copied into receipts; S3 Object Lock anchoring after submission.
+- **Signed receipts of intent** (Ed25519, `flow/receipts.py`): exact mandate + fingerprint (= PayPal `custom_id`),
+  catalogue facts, decision and reasons, AI model + latency, PayPal ids, chain head. Verifiable offline with only
+  the public key (`scripts/verify_receipt.py`). Local key now; KMS after submission (ADR-0008 amendment).
+- **Review fix:** pages longer than the AI's 4,000-character window ⇒ ask first (padding attack). Added in the flow
+  layer, not the frozen engine. Full review: [review-2026-11-08-api.md](review-2026-11-08-api.md).
+- **v3 result:** all 5 pre-registered v3 expectations met (rules 0/75 → + AI 71/75, 0 severe, 0/42 false blocks). The
+  regression look #3 is reported as a **fail-safe** measurement, not an AI one (all AI calls hit the Gemini free
+  quota, 429). See evaluation-plan s.8.
+- **Open: D14** (keep the AI available for judges: paid Gemini tier + labelled replay fallback recommended).
+
 ## 8 Nov 2026 — Core guard + held-out look #1
 
 - **Catalogue v2 (harder, test-only, frozen before running):** rules and detector caught 0/28; with the AI 27/28,
