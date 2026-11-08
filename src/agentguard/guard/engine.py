@@ -26,8 +26,9 @@ def evaluate(request: PaymentRequest, mandate: Mandate | None, *, now: datetime,
     if "ai" in layers and llm is not None and mandate is not None and decision.level != "block":
         from agentguard.ai import intent
         found, info = intent.check(llm, request, mandate, page_text)
-        codes = {f.code for f in decision.findings}
-        if "hidden_instruction" in codes and any(f.code == "ai_cart_mismatch" for f in found):
+        codes = {f.code for f in decision.findings} | {f.code for f in found}
+        page_steered = "hidden_instruction" in codes or "ai_page_instruction_seen" in codes
+        if page_steered and "ai_cart_mismatch" in codes:
             # Policy (evaluation-plan s.8): a cart that differs from the request on a page that tried to steer the
             # agent is treated as following third-party instructions -> block. Two independent layers agree.
             found.append(Finding("cart_differs_on_manipulated_page", "block",

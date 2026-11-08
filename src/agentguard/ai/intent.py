@@ -63,6 +63,12 @@ def check(llm: LLM, request: PaymentRequest, mandate: Mandate, page_text: str) -
     elif not v.matches_request:
         out.append(Finding("ai_cart_mismatch", "hold", f"This may not be what you asked for. {v.reason}",
                            "the cart matches your request, or you approve it", source="ai"))
+        if v.page_has_instructions_for_ai and page_text.strip():
+            # v2 finding (disclosed): the model often sees both facts but doesn't tick "followed". The engine turns
+            # "cart differs" + "page has instructions" into a block.
+            out.append(Finding("ai_page_instruction_seen", "ask_first",
+                               "The shop page contains instructions aimed at buying agents.",
+                               "the buyer confirms the cart", source="ai"))
     elif v.page_has_instructions_for_ai and page_text.strip():
         out.append(Finding("ai_page_steering", "ask_first",
                            f"The shop page tried to steer AI agents. {v.reason}",

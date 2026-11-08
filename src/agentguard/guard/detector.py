@@ -31,6 +31,7 @@ PATTERNS = [
 ]
 HIDDEN_CONTAINER = re.compile(r"display\s*:\s*none|left\s*:\s*-\d{3,}px|font-size\s*:\s*[01]px|"
                               r"color\s*:\s*#fff[^;\"]*;\s*background\s*:\s*#fff", re.IGNORECASE)
+OWN_ASSISTANT = re.compile(r"\b(?:our|my)\s+(?:\w+\s+){0,2}$", re.IGNORECASE)
 B64 = re.compile(r"[A-Za-z0-9+/]{40,}={0,2}")
 
 
@@ -51,7 +52,17 @@ def scan(page_text: str) -> list[Finding]:
     if not page_text:
         return []
     text = normalise(page_text)
-    hits = [p.pattern[:40] for p in PATTERNS if p.search(text)]
+    hits = []
+    for p in PATTERNS:
+        pos = 0
+        while (m := p.search(text, pos)) is not None:
+            # The shop talking about ITS OWN assistant ("our virtual assistant can help...") isn't an instruction
+            # to the buyer's agent (v2 false positive, disclosed). Skip it, but keep looking just after it.
+            if OWN_ASSISTANT.search(text[max(0, m.start() - 30):m.start()]):
+                pos = m.start() + 1
+                continue
+            hits.append(p.pattern[:40])
+            break
     if not hits:
         return []
     hidden = bool(HIDDEN_CONTAINER.search(page_text)) or text != unicodedata.normalize("NFKC", page_text)
