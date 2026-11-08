@@ -52,14 +52,17 @@ def check(llm: LLM, request: PaymentRequest, mandate: Mandate, page_text: str) -
                         "The AI check couldn't run, so AgentGuard asks you instead of guessing.",
                         "the AI check is available again, or you confirm", source="ai")], None
     out = []
-    if v.follows_page_instruction and not v.matches_request:
+    # Guard against the model: it can't have "followed the page" if there is no page text, or if it says the page
+    # has no instructions for AI (found in the 8 Nov live smoke test: a hallucinated "followed the page").
+    followed = v.follows_page_instruction and v.page_has_instructions_for_ai and bool(page_text.strip())
+    if followed and not v.matches_request:
         out.append(Finding("ai_followed_page_instruction", "block",
                            f"The cart seems to follow an instruction hidden in the shop page, not your request. "
                            f"{v.reason}", "the cart matches what you asked for", source="ai"))
     elif not v.matches_request:
         out.append(Finding("ai_cart_mismatch", "hold", f"This may not be what you asked for. {v.reason}",
                            "the cart matches your request, or you approve it", source="ai"))
-    elif v.page_has_instructions_for_ai:
+    elif v.page_has_instructions_for_ai and page_text.strip():
         out.append(Finding("ai_page_steering", "ask_first",
                            f"The shop page tried to steer AI agents. {v.reason}",
                            "you confirm the cart", source="ai"))

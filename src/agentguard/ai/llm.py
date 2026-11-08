@@ -42,18 +42,28 @@ class GeminiLLM:
             raise AIUnavailable("GEMINI_API_KEY is not set")
         self._types = types
         self.model = model or os.environ.get("GEMINI_MODEL", DEFAULT_MODEL)
+        self.thinking = os.environ.get("GEMINI_THINKING", "minimal") or None   # less reasoning = faster
         self._client = genai.Client(api_key=key, http_options=types.HttpOptions(timeout=timeout_ms))
 
     def json(self, *, system: str, user: str, schema: type[T]) -> tuple[T, CallInfo]:
         t = self._types
         start = time.perf_counter()
-        try:
-            r = self._client.models.generate_content(
+
+        def call(thinking):
+            return self._client.models.generate_content(
                 model=self.model, contents=user,
                 config=t.GenerateContentConfig(system_instruction=system, temperature=0, seed=7,
                                                response_mime_type="application/json",
                                                response_json_schema=schema.model_json_schema(),
-                                               max_output_tokens=2048))
+                                               max_output_tokens=2048, thinking_config=thinking))
+        try:
+            try:
+                r = call(t.ThinkingConfig(thinking_level=self.thinking) if self.thinking else None)
+            except Exception as e:
+                if "thinking" not in str(e).lower():
+                    raise
+                self.thinking = None
+                r = call(None)
             obj = schema.model_validate_json(r.text or "")
         except ValidationError as e:
             raise AIUnavailable(f"model output failed the schema ({e.error_count()} errors)") from None
