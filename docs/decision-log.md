@@ -28,6 +28,13 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **v3 result:** all 5 pre-registered v3 expectations met (rules 0/75 → + AI 71/75, 0 severe, 0/42 false blocks). The
   regression look #3 is reported as a **fail-safe** measurement, not an AI one (all AI calls hit the Gemini free
   quota, 429). See evaluation-plan s.8.
+- **Type (Aaron, 17:23): "Wide steel"**: Michroma (wordmark and short headings, matching the logo's lettering) +
+  Reddit Sans (everything else; tabular figures for money and timings). Two families, both SIL OFL, self-hosted with
+  AG Grid Community 32.3.3 (MIT) under `web/static/vendor/` so the judge demo depends on no CDN.
+- **Decision trace timings:** the engine now records each layer's time and findings (`trace`), shown in the UI.
+  Logic unchanged (all tests and frozen-set behaviour identical); catalogue lookup timed in the flow.
+- **D14 built:** `RecordedFirstLLM` replays recorded real answers labelled "recorded <date>" with the latency measured
+  at recording; new input goes live. Recording waits for the quota reset (`scripts/windows/record_demo_answers.bat`).
 - **D14, part approved (Aaron, 17:04): no paid AI tier.** The 5 scripted demo scenarios use real model answers recorded once
   (after the quota resets) and replayed, labelled on screen with model and date; anything new (pasted pages, typed
   rules) calls the AI live. Still open: daily cap / per-visitor limit and a backup model. Rejected: extra Google

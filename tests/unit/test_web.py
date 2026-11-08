@@ -238,3 +238,22 @@ def test_receipt_checked_against_an_outside_key():
     doc = c.get(f"/api/payments/{pay(c).json()['id']}/receipt", headers=BUYER).json()
     other = ReceiptSigner().public_key_b64
     assert not c.post("/api/receipts/verify", params={"public_key": other}, json=doc).json()["valid"]
+
+
+def test_recorded_answers_replay_with_label_and_new_input_goes_live(tmp_path):
+    import json as _json
+
+    from agentguard.ai.cache import CachedLLM, RecordedFirstLLM
+    path = tmp_path / "answers.jsonl"
+    live = FakeLLM()
+    recorder = CachedLLM(path, inner=live)
+    c, _ = client(llm=recorder)
+    c.post("/api/demo/run", json={"scenario": "normal"}, headers=BUYER)
+    lines = [_json.loads(x) for x in path.read_text().splitlines()]
+    path.write_text("".join(_json.dumps({**r, "recorded_at": "2026-11-09"}) + "\n" for r in lines))
+    live2 = FakeLLM()
+    c, _ = client(llm=RecordedFirstLLM(path, inner=live2))
+    p = c.post("/api/demo/run", json={"scenario": "normal"}, headers=BUYER).json()["payment"]
+    assert p["ai"]["provider"] == "recorded 2026-11-09" and p["ai"]["latency_ms"] == 7 and live2.calls == 0
+    c.post("/api/demo/run", json={"scenario": "inflated"}, headers=BUYER)
+    assert live2.calls == 1                                   # not recorded -> live model

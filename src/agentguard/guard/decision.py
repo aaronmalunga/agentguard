@@ -33,6 +33,7 @@ class Decision:
     verified_facts: dict = field(default_factory=dict)   # shown on the approval screen (OWASP ASI09)
     agent_note: str | None = None                        # agent-written text: shown quoted, labelled unverified
     ai_call: dict | None = None                          # model id, latency, tokens (evidence log)
+    trace: list = field(default_factory=list)            # per layer: name, ms, codes it raised (decision trace UI)
 
     @property
     def eval_label(self) -> str:

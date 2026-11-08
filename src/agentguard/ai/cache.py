@@ -54,3 +54,20 @@ class CachedLLM:
         with self.path.open("a", encoding="utf-8", newline="\n") as fh:
             fh.write(json.dumps(rec, ensure_ascii=False) + "\n")
         return obj, info
+
+
+class RecordedFirstLLM(CachedLLM):
+    """Demo mode (decision D14, 8 Nov): the scripted demo scenarios replay REAL model answers recorded once
+    (`scripts/record_demo_answers.py`); anything new goes to the live model. A replayed answer is labelled:
+    provider "recorded <date>", and its latency is the latency measured when it was recorded, never 0 or invented.
+    New live answers are NOT added to the file at runtime (the hosted demo's disk is not evidence)."""
+
+    def json(self, *, system, user, schema):
+        k = self._key(system, user, schema)
+        if k in self.store:
+            rec = self.store[k]
+            info = CallInfo(**{**rec["info"], "provider": f"recorded {rec.get('recorded_at', '')}".strip()})
+            return schema.model_validate(rec["output"]), info
+        if self.inner is None:
+            raise AIUnavailable("no recorded answer and no live model")
+        return self.inner.json(system=system, user=user, schema=schema)

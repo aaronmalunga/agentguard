@@ -21,7 +21,7 @@ CREATE TABLE IF NOT EXISTS payments (
   mandate_fingerprint TEXT, amount_cents INTEGER NOT NULL, currency TEXT NOT NULL, level TEXT NOT NULL,
   status TEXT NOT NULL, findings_json TEXT NOT NULL, facts_json TEXT NOT NULL, agent_note TEXT,
   paypal_order_id TEXT, paypal_authorization_id TEXT, paypal_capture_id TEXT, paypal_status TEXT,
-  paypal_debug_id TEXT, ai_json TEXT, cart_json TEXT, page_source TEXT, agent_id TEXT,
+  paypal_debug_id TEXT, ai_json TEXT, trace_json TEXT, cart_json TEXT, page_source TEXT, agent_id TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS audit (
   seq INTEGER PRIMARY KEY, at TEXT NOT NULL, kind TEXT NOT NULL, payment_id TEXT, data_json TEXT NOT NULL,

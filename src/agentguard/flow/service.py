@@ -11,6 +11,7 @@ the budget reserved until it is read back (ADR-0007).
 """
 
 import json
+import time
 import uuid
 from collections.abc import Callable
 from dataclasses import asdict
@@ -73,7 +74,10 @@ class PaymentService:
             return existing
         if self.catalogue is None:
             raise FlowError("no merchant catalogue configured")
+        t0 = time.perf_counter()
         items, found = self.catalogue.resolve(cart.lines)
+        cat_step = {"layer": "catalogue", "ms": round((time.perf_counter() - t0) * 1000, 2),
+                    "codes": [f.code for f in found]}
         if len(page_text) > PAGE_CHECK_LIMIT:   # review 8 Nov F8: the AI reads the first 4,000 characters only
             found.append(Finding("page_too_long_to_check", "ask_first",
                                  f"The shop page is {len(page_text):,} characters; the AI check reads the first "
@@ -86,6 +90,7 @@ class PaymentService:
                 found.append(Finding("unknown_mandate", "block", f"No mandate '{cart.mandate_id}' exists for this "
                                      "buyer.", "the agent cites a mandate the buyer actually approved"))
             d = combine(found, agent_note=cart.agent_note)
+            d.trace = [cat_step]
             pid = self._new_record(request_key, cart.mandate_id, cart.mandate_version, None, 0, "USD", d,
                                    cart_json=cart.model_dump_json(), page_source=page_source, agent_id=cart.agent_id)
             return self._done("decision", self.store.update_payment(pid, status="blocked"))
@@ -96,12 +101,12 @@ class PaymentService:
                              currency=mandate.currency if mandate else "USD", items=items, ship_to=ship_to,
                              agent_id=cart.agent_id, agent_note=cart.agent_note)
         return self.submit(req, request_key=request_key, page_text=page_text, pre_findings=found,
-                           cart_json=cart.model_dump_json(), page_source=page_source)
+                           cart_json=cart.model_dump_json(), page_source=page_source, pre_trace=[cat_step])
 
     # ------------------------------------------------------------------ agent side
     def submit(self, request: PaymentRequest, *, request_key: str, page_text: str = "",
                pre_findings: list[Finding] | None = None, cart_json: str | None = None,
-               page_source: str | None = None) -> dict:
+               page_source: str | None = None, pre_trace: list | None = None) -> dict:
         existing = self.store.by_request_key(request_key)
         if existing:                                   # the agent retried: same answer, nothing new happens
             return existing
@@ -112,8 +117,10 @@ class PaymentService:
         committed = b.get("spent_cents", 0) + b.get("reserved_cents", 0)
         decision = evaluate(request, mandate, now=self.clock(), registry=self.registry, spent_cents=committed,
                             page_text=page_text, layers=self.layers, llm=self.llm)
+        trace = [*(pre_trace or []), *decision.trace]
         if pre_findings:                                   # catalogue findings (D3) can only raise the level
             decision = escalate(decision, pre_findings)
+        decision.trace = trace
         amount = sum(line_total_cents(i.unit_price, i.quantity) for i in request.items)
         pid = self._new_record(request_key, request.mandate_id, request.mandate_version, mandate, amount,
                                request.currency, decision, cart_json=cart_json or request.model_dump_json(),
@@ -188,7 +195,7 @@ class PaymentService:
             mandate_fingerprint=mandate.fingerprint() if mandate else None, amount_cents=amount, currency=currency,
             level=d.level, status="deciding", findings_json=json.dumps([asdict(f) for f in d.findings]),
             facts_json=json.dumps(d.verified_facts), agent_note=d.agent_note,
-            ai_json=json.dumps(d.ai_call) if d.ai_call else None, **extra)
+            ai_json=json.dumps(d.ai_call) if d.ai_call else None, trace_json=json.dumps(d.trace), **extra)
         return pid
 
     def _audit(self, kind: str, pid: str | None, data: dict) -> dict:

@@ -43,6 +43,7 @@ from agentguard.paypal import PayPalGateway, vaulted_card
 from agentguard.web import demo
 
 STATIC = Path(__file__).parent / "static"
+DEMO_ANSWERS = Path(__file__).parent / "demo_ai_answers.jsonl"   # made by scripts/record_demo_answers.py
 DEMO_TOKENS = {"agent": "demo-agent-token", "buyer": "demo-buyer-token"}
 
 
@@ -132,7 +133,7 @@ class State:
 def view(p: dict) -> dict:
     """A payment as the API shows it: JSON fields parsed, money formatted, whether PayPal was ever called."""
     out = {k: v for k, v in p.items() if not k.endswith("_json")}
-    for k in ("findings", "facts", "ai", "cart"):
+    for k in ("findings", "facts", "ai", "cart", "trace"):
         raw = p.get(f"{k}_json")
         out[k] = json.loads(raw) if raw else None
     out["amount"] = fmt(p["amount_cents"])
@@ -160,6 +161,11 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
             llm = GeminiLLM()
         else:
             llm = NoAI()
+        from agentguard.ai.cache import (
+            RecordedFirstLLM,  # D14: scripted scenarios replay recorded real answers
+        )
+        if DEMO_ANSWERS.exists():
+            llm = RecordedFirstLLM(DEMO_ANSWERS, inner=None if isinstance(llm, NoAI) else llm, model=llm.model)
     demo_mode = demo_mode if demo_mode is not None else os.environ.get("AGENTGUARD_DEMO", "1") == "1"
     tokens = tokens or {"agent": os.environ.get("AGENTGUARD_AGENT_TOKEN") or DEMO_TOKENS["agent"],
                         "buyer": os.environ.get("AGENTGUARD_BUYER_TOKEN") or DEMO_TOKENS["buyer"]}
