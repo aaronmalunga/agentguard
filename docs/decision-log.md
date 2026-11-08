@@ -3,6 +3,15 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 8 Nov 2026 — Core guard + held-out look #1
+
+- **Requirements review:** the official guide says AI "must do meaningful work in the experience or functionality",
+  so the AI layer is the next build item (Devpost early check flagged it). Hub: `FOOLPROOF_REVIEW.md`.
+- **Guard core built:** rules engine, local hidden-instruction detector, monotonic levels approve < hold < ask_first
+  < block (D1), counterfactual reasons (N4), approval facts kept apart from agent text (OWASP ASI09). 99 tests.
+- **Held-out look #1** (rules-only and rules + detector): see evaluation-plan s.8, including why the 100% overstates
+  generalisation. Detector frozen at `5e48324`; v2 independent-wording attacks pre-registered.
+
 ## 7 Nov 2026 — Light day
 
 - **Mandate model** (`agentguard.mandate`): immutable, versioned (`revise()`, `revoke()`), money in cents, inclusive
