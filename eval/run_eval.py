@@ -150,6 +150,7 @@ def main():
                 "latency_ms_p95": fresh[max(int(len(fresh) * 0.95) - 1, 0)] if fresh else None,
                 "input_tokens": sum(x["input_tokens"] or 0 for x in llm.fresh_calls),
                 "output_tokens": sum(x["output_tokens"] or 0 for x in llm.fresh_calls),
+                "failure_reasons": llm.failure_reasons,
                 "note": "latency from fresh calls only; cached replays excluded"}
     out = ROOT / "evidence" / "runs" / f"{datetime.now(UTC):%Y%m%dT%H%M%SZ}_{args.split}.json"
     out.write_text(json.dumps(result, indent=1, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")

@@ -16,6 +16,9 @@ T = TypeVar("T", bound=BaseModel)
 DEFAULT_MODEL = "gemini-3.5-flash-lite"   # 2.5-flash-lite is closed to new users (8 Nov); override with GEMINI_MODEL
 
 
+TRANSIENT = ("429", "RESOURCE_EXHAUSTED", "500", "503", "UNAVAILABLE", "DEADLINE", "timed out", "Timeout")
+
+
 class AIUnavailable(Exception):
     pass
 
@@ -34,7 +37,7 @@ class LLM(Protocol):
 
 
 class GeminiLLM:
-    def __init__(self, api_key: str | None = None, model: str | None = None, timeout_ms: int = 15000):  # Gemini rejects deadlines under 10 s
+    def __init__(self, api_key: str | None = None, model: str | None = None, timeout_ms: int = 15000):   # Gemini minimum: 10 s
         from google import genai
         from google.genai import types
         key = api_key or os.environ.get("GEMINI_API_KEY")
@@ -56,17 +59,25 @@ class GeminiLLM:
                                                response_mime_type="application/json",
                                                response_json_schema=schema.model_json_schema(),
                                                max_output_tokens=2048, thinking_config=thinking))
-        try:
+        def attempt():
             try:
-                r = call(t.ThinkingConfig(thinking_level=self.thinking) if self.thinking else None)
-            except Exception as e:
+                return call(t.ThinkingConfig(thinking_level=self.thinking) if self.thinking else None)
+            except Exception as e:  # noqa: BLE001 -- model rejects this thinking level: retry without it
                 if "thinking" not in str(e).lower():
                     raise
                 self.thinking = None
-                r = call(None)
+                return call(None)
+        try:
+            try:
+                r = attempt()
+            except Exception as e:  # noqa: BLE001 -- one retry for brief provider trouble only
+                if not any(x in str(e) for x in TRANSIENT):
+                    raise
+                time.sleep(2)
+                r = attempt()
             obj = schema.model_validate_json(r.text or "")
         except ValidationError as e:
-            raise AIUnavailable(f"model output failed the schema ({e.error_count()} errors)") from None
+            raise AIUnavailable(f"schema: model output failed validation ({e.error_count()} errors)") from None
         except Exception as e:  # noqa: BLE001 -- any provider failure means "ask the buyer"
             raise AIUnavailable(f"{type(e).__name__}: {str(e)[:160]}") from None
         u = r.usage_metadata

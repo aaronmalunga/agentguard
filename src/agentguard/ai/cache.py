@@ -25,6 +25,7 @@ class CachedLLM:
         self._last = 0.0
         self.fresh_calls: list[dict] = []
         self.failures = 0
+        self.failure_reasons: list[str] = []   # provider messages only, never the key
 
     def _key(self, system, user, schema):
         return hashlib.sha256(f"{self.model}|{schema.__name__}|{system}|{user}".encode()).hexdigest()
@@ -43,8 +44,9 @@ class CachedLLM:
         self._last = time.monotonic()
         try:
             obj, info = self.inner.json(system=system, user=user, schema=schema)
-        except AIUnavailable:
+        except AIUnavailable as e:
             self.failures += 1
+            self.failure_reasons.append(str(e)[:120])
             raise
         rec = {"key": k, "schema": schema.__name__, "output": obj.model_dump(), "info": info.__dict__}
         self.store[k] = rec
