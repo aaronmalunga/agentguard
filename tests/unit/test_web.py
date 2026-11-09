@@ -289,7 +289,7 @@ def test_each_demo_visitor_gets_their_own_budget_and_log():
     b.get("/api/demo/session")
     assert a.cookies["ag_demo"] != b.cookies["ag_demo"]
     for _ in range(3):
-        a.post("/api/demo/run", json={"scenario": "inflated"}, headers=H)    # A spends $297 of $300 in holds
+        a.post("/api/demo/run", json={"scenario": "inflated"}, headers=H)    # A holds $297 of its own budget
     assert len(a.get("/api/payments", headers=H).json()) == 3
     assert b.get("/api/payments", headers=H).json() == []                  # B sees nothing of A's
     p = b.post("/api/demo/run", json={"scenario": "normal"}, headers=H).json()["payment"]

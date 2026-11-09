@@ -19,6 +19,11 @@ Every significant decision, pivot and correction, newest first. Real architectur
   of the first snapshot: most products had 1 shop, so the picker now prefers well-known products sold by 3+ shops, and
   fewer than 3 shops is labelled "N shops only" on screen. Recorded AI answers are tied to the exact prompt, so any
   catalogue change means re-recording (5 calls); `refresh_demo.bat` does catalogue, recording and live check in order.
+- **Demo budget $300 → $500 (11:45):** with real Channel3 prices the five scenarios cost more than $300 together, so
+  the live check's last scenario was blocked as over budget (correct behaviour, wrong demo). Recorded answers are
+  re-recorded because the buyer's wording is part of the AI prompt. Live check before the change: 7/8, with the 8th the
+  budget rule working (`spike/results/2026-11-09_1135_api_smoke.json`); Channel3 market prices live on 5/5 decisions,
+  3–6 shops each, 348–1,379 ms.
 - **Per-visitor demo sessions** (review U6): each judge's browser gets its own budget, payments and log, so judges
   never spend or see each other's demo.
 

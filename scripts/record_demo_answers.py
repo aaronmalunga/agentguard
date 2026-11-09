@@ -24,6 +24,8 @@ def main():
     from agentguard.ai.llm import GeminiLLM
     from agentguard.web import demo
     from agentguard.web.app import create_app
+    if OUT.exists():
+        OUT.unlink()   # start clean: answers recorded for an older catalogue or wording would never match again
     rec = CachedLLM(OUT, inner=GeminiLLM(), min_interval_s=8)   # pace calls: free tier also limits per minute
     c = TestClient(create_app(paypal_mode="fake", llm=rec, tokens={"agent": "a", "buyer": "b"}, demo_mode=True))
     ok = 0

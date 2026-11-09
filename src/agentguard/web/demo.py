@@ -22,7 +22,7 @@ NAMES = {MERCHANT_ID: MERCHANT_NAME}
 CATEGORIES = ["electronics_audio", "phone_accessories", "gift_cards", "home", "groceries"]
 MERCHANTS = [MERCHANT_ID]
 DEMO_INSTRUCTION = ("Buy me one pair of wireless noise-cancelling earbuds from SoundMart, under $150. "
-                    "Total spend up to $300 this week.")
+                    "Total spend up to $500 this week.")   # $500: real prices; all 5 scenarios fit (live check 9 Nov)
 
 SNAPSHOT = Path(__file__).parent / "channel3_catalogue.json"   # made by scripts/channel3_catalogue.py
 
@@ -108,7 +108,7 @@ def catalogue() -> Catalogue:
 
 def demo_mandate(now: datetime, mandate_id: str = "thandi-earbuds") -> Mandate:
     return Mandate(mandate_id=mandate_id, version=1, buyer_instruction=DEMO_INSTRUCTION, currency="USD",
-                   budget_total_cents=30000, max_item_price_cents=15000, max_quantity_per_item=1,
+                   budget_total_cents=50000, max_item_price_cents=15000, max_quantity_per_item=1,
                    allowed_categories=("electronics_audio",), allowed_merchants=(MERCHANT_ID,), ship_to=HOME,
                    valid_from=now - timedelta(minutes=5), expires_at=now + timedelta(days=7))
 
