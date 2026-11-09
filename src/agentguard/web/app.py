@@ -189,6 +189,16 @@ class State:
             self.sessions.move_to_end(sid)
             return s
 
+    def find_by_paypal_ids(self, ids: set[str]):
+        """(service, payment id) of the payment, in any visitor's session, that has one of these PayPal IDs."""
+        with self._lock:
+            sessions = list(self.sessions.values())
+        for s in sessions:
+            for p in s.svc.store.payments():
+                if ids & {p.get("paypal_order_id"), p.get("paypal_authorization_id"), p.get("paypal_capture_id")}:
+                    return s.svc, p["id"]
+        return None
+
     # the current request's session (set by middleware from the demo cookie)
     @property
     def svc(self) -> PaymentService:
@@ -239,7 +249,7 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                clock: Callable[[], datetime] | None = None, signer: ReceiptSigner | None = None,
                tokens: dict | None = None, demo_mode: bool | None = None, db_path: str | None = None,
                demo_source: str = "auto", market=None,
-               rate_per_min: int | None = None) -> FastAPI:
+               rate_per_min: int | None = None, webhook_verifier=None) -> FastAPI:
     from dotenv import load_dotenv  # same .env files as the scripts; real env vars win
 
     from agentguard.config import ENV_FILES
@@ -267,6 +277,12 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     if market is None and os.environ.get("CHANNEL3_API_KEY"):
         from agentguard.market.channel3 import Channel3
         market = Channel3()
+    if webhook_verifier is None and paypal_mode == "sandbox" and os.environ.get("PAYPAL_WEBHOOK_ID"):
+        from agentguard.config import load_settings
+        from agentguard.paypal.webhooks import WebhookVerifier
+        cfg = load_settings()
+        webhook_verifier = WebhookVerifier(cfg.paypal_client_id.get_secret_value(),
+                                           cfg.paypal_client_secret.get_secret_value(), os.environ["PAYPAL_WEBHOOK_ID"])
     st = State(paypal_mode=paypal_mode, llm=llm if ai != "off" else None, layers=layers, demo_data=demo.build(demo_source),
                market=market,
                clock=clock or (lambda: datetime.now(UTC)), signer=signer or ReceiptSigner(), tokens=tokens,
@@ -276,6 +292,9 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                   description="Checks that an AI agent's payment is what the buyer meant, before money moves on "
                               "PayPal (sandbox only). Agents ask; AgentGuard decides; PayPal moves the money.")
     app.state.ag = st
+    from agentguard.paypal.webhooks import SeenEvents, related_ids
+    seen = SeenEvents()
+    hooks = {"verified": 0, "rejected": 0, "duplicates": 0, "unmatched": 0}
 
     @app.exception_handler(HTTPException)
     async def http_error(_req: Request, exc: HTTPException):
@@ -334,6 +353,8 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                 "audit_entries": a["checked"], "demo": demo_mode,
                 "market": "Channel3 (live market prices)" if st.market is not None else "off",
                 "product_data": st.demo.source,
+                "webhooks": "on (PayPal-verified)" if webhook_verifier else "off",
+                "webhook_counts": hooks,
                 "recorded_ai_answers": sum(1 for _ in DEMO_ANSWERS.open(encoding="utf-8")) if DEMO_ANSWERS.exists() else 0}
 
     # ---------------------------------------------------------------- shop data (public)
@@ -467,6 +488,41 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     @app.get("/api/audit/verify", tags=["evidence"])
     def audit_verify():
         return st.svc.verify_audit()
+
+    # ---------------------------------------------------------------- PayPal webhooks
+    @app.post("/api/webhooks/paypal", tags=["paypal"])
+    async def paypal_webhook(request: Request):
+        """PayPal calls this when a payment changes. Nothing is believed until PayPal confirms the signature; a
+        verified event is written to that payment's hash-chained audit log (agentguard.paypal.webhooks)."""
+        if webhook_verifier is None:
+            _err(503, "webhooks_off", "Webhooks are not configured on this server (PAYPAL_WEBHOOK_ID).")
+        raw = await request.body()
+        if len(raw) > 64_000:
+            _err(413, "too_large", "Webhook body too large.")
+        try:
+            event = json.loads(raw)
+            event_id, event_type = str(event["id"]), str(event["event_type"])
+        except (ValueError, KeyError, TypeError):
+            _err(400, "invalid_event", "Not a PayPal webhook event.")
+        ok, why = webhook_verifier.verify(dict(request.headers), event)
+        if not ok:
+            hooks["rejected"] += 1
+            _err(400, "unverified", f"Signature not verified: {why}. Nothing was recorded.")
+        if not seen.first_time(event_id):
+            hooks["duplicates"] += 1
+            return {"ok": True, "duplicate": True}
+        ids = related_ids(event)
+        found = st.find_by_paypal_ids(ids)
+        if not found:
+            hooks["unmatched"] += 1
+            return {"ok": True, "matched": False}
+        svc, pid = found
+        res = event.get("resource") or {}
+        svc._audit("paypal_webhook", pid, {"event_id": event_id, "event_type": event_type,
+                                           "resource_id": res.get("id"), "status": res.get("status"),
+                                           "verified": "PayPal verify-webhook-signature: SUCCESS"})
+        hooks["verified"] += 1
+        return {"ok": True, "matched": True}
 
     # ---------------------------------------------------------------- demo helpers
     if demo_mode:

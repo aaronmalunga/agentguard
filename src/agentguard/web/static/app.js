@@ -63,6 +63,11 @@
   function nice(list) { return list.map(function (x) { x = x.replace(/_/g, " "); return x.charAt(0).toUpperCase() + x.slice(1); }).join(", "); }
   function shopNames(list) { return list.map(function (x) { return { soundmart: "SoundMart" }[x] || x; }).join(", "); }
   function day(iso) { var d = new Date(iso); return isNaN(d) ? iso.slice(0, 10) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
+  function auditLabel(a) {
+    if (a.kind === "paypal_webhook") { var d = {}; try { d = JSON.parse(a.data_json || "{}"); } catch (e) {}
+      return "PayPal confirmed (signed): " + (d.event_type || "event"); }
+    return a.kind.replace(/_/g, " ");
+  }
   function statusChip(st) { var s = STATUS[st] || ["neutral", st]; return '<span class="status ' + s[0] + '">' + esc(s[1]) + "</span>"; }
   function coinKind(st) { return { captured: "approve", held: "hold", awaiting_buyer: "hold", blocked: "block", declined: "block" }[st]; }
   function needsBuyer(p) { return p.status === "held" || p.status === "awaiting_buyer"; }
@@ -370,7 +375,7 @@
         "<dt>Authorisation</dt><dd>" + esc(p.paypal_authorization_id || "none") + "</dd><dt>Capture</dt><dd>" + esc(p.paypal_capture_id || "none") + "</dd>" +
         "<dt>Status</dt><dd>" + esc(p.paypal_status || "none") + "</dd></dl>";
       h += '<h3 class="sub">Signed log entries</h3><ul class="check-list">';
-      (p.audit || []).forEach(function (a) { h += '<li class="num">#' + a.seq + " " + esc(a.kind) + ' <span class="hint">' + esc(a.hash.slice(0, 16)) + "…</span></li>"; });
+      (p.audit || []).forEach(function (a) { h += '<li class="num">#' + a.seq + " " + esc(auditLabel(a)) + ' <span class="hint">' + esc(a.hash.slice(0, 16)) + "…</span></li>"; });
       h += "</ul>";
       if (p.agent_note) h += '<blockquote class="agent-says">The agent says, unverified: “' + esc(p.agent_note) + "”</blockquote>";
       h += '<button class="btn primary" type="button" id="getReceipt">Get receipt</button>';

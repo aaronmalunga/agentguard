@@ -5,6 +5,18 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 9 Nov 2026
 
+- **UI polish from Aaron's review (17:20):** AG Grid icons were empty squares because we shipped the "no-font" Quartz
+  theme → full theme (same version 32.3.3, MIT); grid rows 52 px with centred status and action cells (pills were
+  clipped); product photos on a warm tile, multiplied in so the white photo background disappears; plain-language
+  copy (no dates or "red team" in the shop panel; "reserved, not taken" instead of "authorised"/"voided"); nicer rule
+  labels; wider approval card.
+- **PayPal webhooks (Aaron: "give the judges what they ask for", 17:30).** `POST /api/webhooks/paypal`. An event is
+  believed only after PayPal's verify-webhook-signature postback says SUCCESS; cheap checks first (5 headers present,
+  certificate URL on paypal.com) so junk never costs a PayPal call; de-duplicated by event ID (PayPal retries for up
+  to 3 days); a verified event is appended to that payment's hash-chained audit log. Off unless `PAYPAL_WEBHOOK_ID`
+  is set. Options: postback (chosen: documented, no crypto code to get wrong) vs verifying the RSA signature
+  ourselves (faster, no extra call, more to get wrong). Simulator events can't be verified (PayPal docs), so the live
+  test needs real sandbox events. Tests 167 → 179.
 - **Judge pressure test of the live site (16:00–16:20 SA), fetch calls from the public page.** Held: 8 bad mandates
   refused with 422 (zero/negative budget, item price above budget, EUR/unknown currency, expired or inverted dates,
   empty categories); same mandate twice → 409; agent token can't approve, reject or set rules (403); buyer token can't

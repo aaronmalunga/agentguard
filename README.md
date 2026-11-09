@@ -78,7 +78,9 @@ flowchart LR
 3. **Two decision points** ([ADR-0001](docs/adr/0001-two-decision-points.md)). Clear violations are stopped **before
    authorization**, so they never reach PayPal or the card issuer. Doubtful payments are **authorized and held**, and
    the buyer decides: capture or void.
-4. **Evidence.** Every decision gets an Ed25519-signed receipt and an entry in a hash-chained audit log.
+4. **Evidence.** Every decision gets an Ed25519-signed receipt and an entry in a hash-chained audit log. When PayPal
+   later reports a change (capture completed, refund, reversal), its webhook is believed only after PayPal verifies the
+   signature, and is then added to the same log.
 
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
@@ -158,7 +160,8 @@ uv run python eval/run_eval.py                  # evaluation on the dev set, no 
 
 To use the real **PayPal sandbox**, copy `.env.example` to `.env` (git-ignored) and set `AGENTGUARD_PAYPAL=sandbox`,
 `PAYPAL_CLIENT_ID`, `PAYPAL_CLIENT_SECRET` (a US sandbox business app) and `AGENTGUARD_VAULT_ID`. Add
-`GEMINI_API_KEY` for the live AI. All settings are listed at the top of
+`GEMINI_API_KEY` for the live AI, and `PAYPAL_WEBHOOK_ID` (from your app's webhook in the PayPal Developer
+Dashboard) to accept PayPal webhooks. All settings are listed at the top of
 [`src/agentguard/web/app.py`](src/agentguard/web/app.py). Live check scripts: `scripts/smoke_*.py`. Contributor
 rules: [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 
@@ -173,6 +176,8 @@ rules: [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Rate limit.** 30 calls a minute per visitor on anything that spends PayPal sandbox or AI quota, so one script
   can't use up the demo for everyone.
 - **Every PayPal call that moves money has an idempotency key**, reused on retries, so nothing is charged twice.
+- **Webhooks are verified before use** (PayPal's verify-webhook-signature postback; certificate URL must be on
+  paypal.com; duplicates ignored). Unverified events are refused and nothing is recorded.
 - Secrets are only in environment variables, never in git or logs. Mandates are capped at $10,000.
 
 Vulnerabilities: see [SECURITY.md](SECURITY.md).
