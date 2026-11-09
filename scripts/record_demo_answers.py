@@ -24,7 +24,7 @@ def main():
     from agentguard.ai.llm import GeminiLLM
     from agentguard.web import demo
     from agentguard.web.app import create_app
-    rec = CachedLLM(OUT, inner=GeminiLLM())
+    rec = CachedLLM(OUT, inner=GeminiLLM(), min_interval_s=8)   # pace calls: free tier also limits per minute
     c = TestClient(create_app(paypal_mode="fake", llm=rec, tokens={"agent": "a", "buyer": "b"}, demo_mode=True))
     ok = 0
     for sc in demo.SCENARIOS:
@@ -32,7 +32,8 @@ def main():
         ai = p.get("ai") or {}
         good = "model" in ai
         ok += good
-        print(f"[{'OK  ' if good else 'FAIL'}] {sc:<18} {p['level']:<10} AI: {ai.get('model')} {ai.get('latency_ms')} ms")
+        when = "recorded earlier" if good and ai.get("latency_ms") == 0 else f"{ai.get('latency_ms')} ms"
+        print(f"[{'OK  ' if good else 'FAIL'}] {sc:<18} {p['level']:<10} AI: {ai.get('model')} {when}")
     if rec.failures:
         print("failures:", rec.failure_reasons)
     stamp = datetime.now(UTC).strftime("%Y-%m-%d")
