@@ -64,6 +64,25 @@ Want to help or try to break it? See [CONTRIBUTING.md](CONTRIBUTING.md).
 - Sandbox only; synthetic data; AP2-*style* mandates (not the full AP2 protocol).
 - Hackathon v1 — not production software.
 
+## Built with the APIMatic PayPal Context Plugin
+
+AgentGuard's PayPal gateway ([`src/agentguard/paypal/gateway.py`](src/agentguard/paypal/gateway.py)) is built on the
+APIMatic-generated [`paypal-server-sdk`](https://pypi.org/project/paypal-server-sdk/) (Python), written on 5 Nov 2026
+with the **PayPal Server SDK Context Plugin** loaded in Claude Code. Five of the gateway's rules came straight from the
+plugin's Python skills (client set-up, OAuth, error handling, testing):
+
+1. Pass the sandbox environment explicitly **and** check the resolved base URL (`Environment.PRODUCTION == 0`, so a
+   stray `0` would select live).
+2. Build the client once and reuse it, so the OAuth token is cached.
+3. Catch `AuthValidationException` separately: it is not an `ApiException`.
+4. POSTs are never auto-retried; our retries reuse the same `PayPal-Request-Id`, so nothing is charged twice.
+5. Stub the OAuth token endpoint separately in tests.
+
+Our own tests then caught two SDK traps the plugin pointed towards (an optional field sent as `null` instead of
+omitted; a network error escaping as a raw exception). Result: the gateway passed **9/9** live sandbox checks on first
+run (5 Nov) and the whole app **8/8** through the web API (9 Nov). Evidence: [decision log, 5 Nov](docs/decision-log.md),
+[PayPal developer feedback log](docs/paypal-feedback.md) rows 7–10, `spike/results/`.
+
 ## AI usage
 
 - **In the product:** *(to be completed as built — models and their roles)*
