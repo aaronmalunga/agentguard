@@ -1,6 +1,9 @@
 # AgentGuard — agent spending controls, built on PayPal
 
-**AgentGuard checks that an AI agent's payment is one the buyer actually *meant*, before money moves on PayPal.**
+> **Your agent just paid. Did you mean it?**
+
+**PayPal moves the money. AgentGuard checks you meant it.** AgentGuard checks every AI agent payment against
+what the buyer actually meant, before money moves on PayPal.
 For every payment an agent asks to make, it decides to **approve**, **hold**, **ask the buyer first** or **block**,
 explains why in plain English, and issues a signed receipt of what the buyer allowed.
 
@@ -20,7 +23,7 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 
 ## The problem
 
-AI agents can now pay on people's behalf. When an agent buys something its owner never wanted, the payment was
+**Authorized isn't the same as intended.** AI agents can now pay on people's behalf. When an agent buys something its owner never wanted, the payment was
 **authorized** (the agent had permission) but not **intended**. PayPal's own merchant research (498 US merchants,
 April 2026) found no clear consensus on who is responsible when a customer disputes an agent's purchase: liability is
 "in flux" ([source](docs/sources.md#s1)). Today the only fix is reversing the payment afterwards, which costs fees,
