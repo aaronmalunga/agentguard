@@ -58,9 +58,13 @@ def main():
                      "level": p["level"], "codes": [f["code"] for f in p["findings"]],
                      "paypal_order_id": p.get("paypal_order_id"), "paypal_status": p.get("paypal_status"),
                      "paypal_called": p["paypal_called"], "ai_model": ai.get("model"),
-                     "ai_latency_ms": ai.get("latency_ms"), "payment_id": p["id"]})
+                     "ai_latency_ms": ai.get("latency_ms"), "ai_provider": ai.get("provider"), "payment_id": p["id"],
+                     "market": next((t.get("checks") for t in p.get("trace") or [] if t["layer"] == "market"), None)})
         print(f"[{'OK  ' if ok else 'FAIL'}] {sc:<18} {p['status']:<15} PayPal: {p.get('paypal_status')}  "
               f"AI: {ai.get('model')} {ai.get('latency_ms')} ms  {[f['code'] for f in p['findings']]}")
+        for m in rows[-1]["market"] or []:
+            print(f"         market: {'LIVE' if m.get('live') else 'fallback'} "
+                  + (f"median ${m['median_cents'] / 100:.2f} over {m['offers']} offer(s), {m['ms']} ms" if m.get("live") else ""))
     held = next((r for r in rows if r["scenario"] == "inflated"), None)
     if held and held["status"] == "held":
         v = c.post(f"/api/payments/{held['payment_id']}/reject", headers=B).json()
@@ -82,7 +86,7 @@ def main():
         print(f"\nAdd this line to your .env for the hosted demo:\nAGENTGUARD_VAULT_ID={os.environ['AGENTGUARD_VAULT_ID']}")
     out = ROOT / "spike" / "results" / f"{datetime.now():%Y-%m-%d_%H%M}_api_smoke.json"
     out.write_text(json.dumps({"ran_at": datetime.now().astimezone().isoformat(timespec="seconds"),
-                               "via": "agentguard.web.app (HTTP API) + PayPal sandbox + AI model",
+                               "via": "agentguard.web.app (HTTP API) + PayPal sandbox + AI model + Channel3 market prices",
                                "health": health, "results": rows}, indent=2, default=str), encoding="utf-8")
     print("saved", out.name)
     return 0 if n == len(rows) else 1
