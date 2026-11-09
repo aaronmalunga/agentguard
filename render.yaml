@@ -6,7 +6,7 @@ services:
     runtime: python
     plan: free                     # decision D8: free now (sleeps when idle); paid during judging decided by 30 Nov
     region: frankfurt
-    buildCommand: pip install uv==0.9.5 && uv sync --frozen --no-dev
+    buildCommand: pip install uv==0.13.4 && uv sync --frozen --no-dev
     startCommand: uv run --no-dev uvicorn agentguard.web.app:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
     healthCheckPath: /healthz
     autoDeploy: true
