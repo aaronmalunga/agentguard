@@ -3,6 +3,22 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 9 Nov 2026 (late) — Webhooks drive payment state (review W4/W5) → ADR-0009
+
+- **Forward-only state machine** (`flow/paypal_events.py`): verified PayPal events now move status (held/unknown →
+  captured, voided, declined; captured → partly refunded → refunded, or reversed) and the budget follows. A late or
+  repeated event never moves status back; it is logged "unchanged". Console: "Refunded outside AgentGuard",
+  "Reversed (chargeback)", "Disputed".
+- **Transactional inbox:** event ID (primary key), status, budget and audit entry in one SQLite transaction; the
+  in-memory `SeenEvents` is gone. A crash mid-way rolls back so PayPal's retry is processed.
+- **Disputes:** `CUSTOMER.DISPUTE.CREATED` matched via `disputed_transactions[].seller_transaction_id` (= capture ID,
+  PayPal docs) → flag + evidence (mandate fingerprint, receipt SHA-256, key ID); not sent to PayPal (T11, roadmap).
+- Proof so far: tests with PayPal's documented event shapes (not captured events); 181 → 196 tests. **Live proof
+  pending:** Aaron refunds one captured sandbox payment from the business account; dispute event box to tick in the
+  webhook settings.
+- **Devpost rule (email, 9 Nov 22:27):** after the deadline nothing changes — no commits, README edits or video swaps
+  until winners are announced. So the live demo at 12 Nov 22:00 SA is what judges use until 15 Dec.
+
 ## 9 Nov 2026 (late) — Threat model (review J3)
 
 - **`docs/threat-model.md`:** STRIDE per trust boundary (agent, page, AI, PayPal, browser), money-path risks, OWASP Top

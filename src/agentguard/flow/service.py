@@ -10,6 +10,7 @@ The order carries the mandate fingerprint in PayPal's custom_id (decision D2). A
 the budget reserved until it is read back (ADR-0007).
 """
 
+import hashlib
 import json
 import time
 import uuid
@@ -18,7 +19,7 @@ from dataclasses import asdict
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from agentguard.flow import audit
+from agentguard.flow import audit, paypal_events
 from agentguard.flow.catalogue import AgentCart, Catalogue
 from agentguard.flow.receipts import ReceiptSigner
 from agentguard.flow.store import Store
@@ -188,6 +189,24 @@ class PaymentService:
                        "capture_id": p["paypal_capture_id"], "status": p["paypal_status"]},
             "paypal_custom_id": f"agentguard:{p['mandate_fingerprint']}" if p["paypal_order_id"] else None,
             "audit": {"entries": mine, "chain_head": chain[-1]["hash"] if chain else audit.GENESIS}})
+
+    def apply_paypal_event(self, pid: str, event_id: str, event_type: str, resource: dict) -> dict | None:
+        """A VERIFIED PayPal webhook for payment `pid`: forward-only status change, budget follow-up and audit entry,
+        all in one transaction with the event ID (agentguard.flow.paypal_events). None = already handled."""
+        evidence = None
+        if event_type == "CUSTOMER.DISPUTE.CREATED":
+            # the evidence AgentGuard holds for this payment, fixed at the moment the dispute opened
+            r = self.receipt(pid)
+            evidence = {"mandate_fingerprint": r["receipt"]["mandate_fingerprint"],
+                        "receipt_sha256": hashlib.sha256(audit.canonical(r).encode()).hexdigest(),
+                        "receipt_key_id": r["receipt"].get("key_id"), "receipt_url": f"/api/payments/{pid}/receipt",
+                        "submitted_to_paypal": False}
+        data = {"event_id": event_id, "event_type": event_type, "resource_id": resource.get("id")
+                or resource.get("dispute_id"), "paypal_status": resource.get("status"),
+                "verified": "PayPal verify-webhook-signature: SUCCESS"}
+        return self.store.apply_paypal_event(event_id, event_type, pid,
+                                             lambda p: paypal_events.plan(p, event_type, resource, evidence),
+                                             data, audit.link)
 
     def verify_audit(self) -> dict:
         return audit.verify(self.store.audit_entries())

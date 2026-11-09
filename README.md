@@ -84,8 +84,12 @@ flowchart LR
 4. **Evidence.** Every decision gets an Ed25519-signed receipt and an entry in a hash-chained audit log. When PayPal
    reports a change by webhook, the event is believed only after PayPal verifies its signature, and is then added to
    the same log as evidence (tested live with authorization created, capture completed and authorization voided).
-   Webhook events are recorded, never acted on: a refund or chargeback made outside AgentGuard is logged, not
-   handled (roadmap).
+   Verified events also keep the payment's status true to PayPal, and only ever forwards: a refund or chargeback
+   made on PayPal marks the payment "refunded outside AgentGuard" or "reversed" and gives the money back to the
+   buyer's budget; a late or repeated event changes nothing. A buyer dispute flags the payment and attaches the
+   mandate fingerprint and signed receipt as evidence (sending it to PayPal's Disputes API is roadmap). Event ID,
+   status change, budget change and log entry are saved in one database transaction. Refunds, reversals and
+   disputes are tested with PayPal's documented event formats; a live sandbox refund check is pending.
 
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.

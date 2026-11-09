@@ -11,7 +11,8 @@ Rules:
   webhook ID and the event to /v1/notifications/verify-webhook-signature; only "SUCCESS" passes.
 - Cheap checks first (all five headers present, certificate URL on a paypal.com host), so junk never costs a PayPal
   call.
-- PayPal retries for up to 3 days, so the same event can arrive more than once: de-duplicate by event ID.
+- PayPal retries for up to 3 days, so the same event can arrive more than once, late or out of order: the event ID is
+  stored in the payment database in the same transaction as its effect (agentguard.flow.paypal_events).
 - Sandbox only, like the rest of AgentGuard. The webhook ID comes from PAYPAL_WEBHOOK_ID; without it the endpoint
   is off and says so.
 - Webhook Simulator events are mock events PayPal cannot verify (PayPal docs), so testing needs real sandbox events.
@@ -19,7 +20,6 @@ Rules:
 
 import threading
 import time
-from collections import OrderedDict
 from urllib.parse import urlparse
 
 import requests
@@ -43,6 +43,8 @@ def related_ids(event: dict) -> set[str]:
     ids = {r.get("id")}
     rel = ((r.get("supplementary_data") or {}).get("related_ids") or {})
     ids |= {rel.get("order_id"), rel.get("authorization_id"), rel.get("capture_id")}
+    for t in r.get("disputed_transactions") or []:   # a dispute names the capture as the seller's transaction ID
+        ids.add(t.get("seller_transaction_id"))
     for link in r.get("links") or []:   # a refund links "up" to its capture
         if link.get("rel") == "up":
             ids.add((link.get("href") or "").rstrip("/").rsplit("/", 1)[-1])
@@ -89,19 +91,3 @@ class WebhookVerifier:
         except (requests.RequestException, ValueError, KeyError) as e:
             return False, f"verification call failed ({type(e).__name__})"
         return status == "SUCCESS", f"PayPal says {status}"
-
-
-class SeenEvents:
-    """Event IDs already handled. Bounded, in memory (one process, like the demo)."""
-
-    def __init__(self, size: int = 5000):
-        self.size, self.ids, self._lock = size, OrderedDict(), threading.Lock()
-
-    def first_time(self, event_id: str) -> bool:
-        with self._lock:
-            if event_id in self.ids:
-                return False
-            self.ids[event_id] = True
-            while len(self.ids) > self.size:
-                self.ids.popitem(last=False)
-            return True

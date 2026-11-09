@@ -58,17 +58,21 @@
   var STATUS = {
     captured: ["approve", "Captured"], held: ["hold", "Held, waiting"], awaiting_buyer: ["ask", "Asked first"],
     blocked: ["block", "Blocked"], declined: ["block", "Declined by PayPal"], voided: ["neutral", "Voided, $0 fee"],
-    rejected: ["neutral", "Rejected, never charged"], unknown: ["hold", "Checking with PayPal"], deciding: ["neutral", "Deciding"]
+    rejected: ["neutral", "Rejected, never charged"], unknown: ["hold", "Checking with PayPal"], deciding: ["neutral", "Deciding"],
+    partially_refunded: ["neutral", "Part refunded outside AgentGuard"],
+    refunded: ["neutral", "Refunded outside AgentGuard"],
+    reversed: ["block", "Reversed (chargeback)"]
   };
   function nice(list) { return list.map(function (x) { x = x.replace(/_/g, " "); return x.charAt(0).toUpperCase() + x.slice(1); }).join(", "); }
   function shopNames(list) { return list.map(function (x) { return { soundmart: "SoundMart" }[x] || x; }).join(", "); }
   function day(iso) { var d = new Date(iso); return isNaN(d) ? iso.slice(0, 10) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
   function auditLabel(a) {
     if (a.kind === "paypal_webhook") { var d = {}; try { d = JSON.parse(a.data_json || "{}"); } catch (e) {}
-      return "PayPal confirmed (signed): " + (d.event_type || "event"); }
+      return "PayPal confirmed (signed): " + (d.event_type || "event") + (d.note ? " · " + d.note : ""); }
     return a.kind.replace(/_/g, " ");
   }
   function statusChip(st) { var s = STATUS[st] || ["neutral", st]; return '<span class="status ' + s[0] + '">' + esc(s[1]) + "</span>"; }
+  function disputeChip(p) { return p && p.dispute ? ' <span class="status block" title="Evidence attached: mandate fingerprint + signed receipt">Disputed</span>' : ""; }
   function coinKind(st) { return { captured: "approve", held: "hold", awaiting_buyer: "hold", blocked: "block", declined: "block" }[st]; }
   function needsBuyer(p) { return p.status === "held" || p.status === "awaiting_buyer"; }
 
@@ -304,11 +308,11 @@
   function aiOf(p) { var a = p.ai || {}; if (!a.model) return (p.trace || []).some(function (t) { return t.skipped; }) ? "Not needed" : "Unavailable";
     return a.model + ", " + Math.round(a.latency_ms) + " ms" + (a.provider && a.provider.indexOf("recorded") === 0 ? " (recorded)" : ""); }
 
-  var STATUS_GROUPS = { needs: ["held", "awaiting_buyer"], blocked: ["blocked", "declined"], captured: ["captured"], voided: ["voided", "rejected"] };
+  var STATUS_GROUPS = { needs: ["held", "awaiting_buyer"], blocked: ["blocked", "declined"], captured: ["captured", "partially_refunded", "refunded", "reversed"], voided: ["voided", "rejected"] };
 
   function initGrid() {
     var StatusCell = function () {};
-    StatusCell.prototype.init = function (params) { this.e = document.createElement("span"); this.e.innerHTML = statusChip(params.value); };
+    StatusCell.prototype.init = function (params) { this.e = document.createElement("span"); this.e.innerHTML = statusChip(params.value) + disputeChip(params.data); };
     StatusCell.prototype.getGui = function () { return this.e; };
     var ActCell = function () {};
     ActCell.prototype.init = function (params) {
@@ -323,7 +327,7 @@
       rowData: [], getRowId: function (p) { return p.data.id; }, rowHeight: 52, headerHeight: 44,
       columnDefs: [
         { headerName: "Time", field: "created_at", width: 110, sort: "desc", valueFormatter: function (p) { return (p.value || "").slice(11, 19); } },
-        { headerName: "Status", field: "status", width: 170, cellRenderer: StatusCell, filter: true, cellClass: "cell-mid" },
+        { headerName: "Status", field: "status", width: 240, cellRenderer: StatusCell, filter: true, cellClass: "cell-mid" },
         { headerName: "Buyer", cellRenderer: ActCell, width: 200, sortable: false, cellClass: "cell-mid" },
         { headerName: "Item", valueGetter: function (p) { return itemsOf(p.data); }, flex: 1.2, minWidth: 180 },
         { headerName: "Total", field: "amount", width: 110, type: "rightAligned", cellClass: "num" },

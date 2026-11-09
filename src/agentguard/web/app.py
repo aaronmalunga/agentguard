@@ -241,7 +241,7 @@ class State:
 def view(p: dict) -> dict:
     """A payment as the API shows it: JSON fields parsed, money formatted, whether PayPal was ever called."""
     out = {k: v for k, v in p.items() if not k.endswith("_json")}
-    for k in ("findings", "facts", "ai", "cart", "trace"):
+    for k in ("findings", "facts", "ai", "cart", "trace", "dispute"):
         raw = p.get(f"{k}_json")
         out[k] = json.loads(raw) if raw else None
     out["amount"] = fmt(p["amount_cents"])
@@ -297,8 +297,7 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                   description="Checks that an AI agent's payment is what the buyer meant, before money moves on "
                               "PayPal (sandbox only). Agents ask; AgentGuard decides; PayPal moves the money.")
     app.state.ag = st
-    from agentguard.paypal.webhooks import SeenEvents, related_ids
-    seen = SeenEvents()
+    from agentguard.paypal.webhooks import related_ids
     hooks = {"verified": 0, "rejected": 0, "duplicates": 0, "unmatched": 0}
 
     @app.exception_handler(HTTPException)
@@ -521,21 +520,19 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         if not ok:
             hooks["rejected"] += 1
             _err(400, "unverified", f"Signature not verified: {why}. Nothing was recorded.")
-        if not seen.first_time(event_id):
-            hooks["duplicates"] += 1
-            return {"ok": True, "duplicate": True}
         ids = related_ids(event)
         found = st.find_by_paypal_ids(ids)
         if not found:
             hooks["unmatched"] += 1
             return {"ok": True, "matched": False}
         svc, pid = found
-        res = event.get("resource") or {}
-        svc._audit("paypal_webhook", pid, {"event_id": event_id, "event_type": event_type,
-                                           "resource_id": res.get("id"), "status": res.get("status"),
-                                           "verified": "PayPal verify-webhook-signature: SUCCESS"})
+        # one transaction: event ID claimed, status/budget changed, audit entry written (transactional inbox)
+        done = await run_in_threadpool(svc.apply_paypal_event, pid, event_id, event_type, event.get("resource") or {})
+        if done is None:
+            hooks["duplicates"] += 1
+            return {"ok": True, "duplicate": True}
         hooks["verified"] += 1
-        return {"ok": True, "matched": True}
+        return {"ok": True, "matched": True, "status": done["payment"]["status"], "note": done["plan"].note}
 
     # ---------------------------------------------------------------- demo helpers
     if demo_mode:
