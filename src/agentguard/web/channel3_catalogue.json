@@ -1,76 +1,91 @@
 {
   "source": "Channel3 product search (US, USD)",
-  "retrieved_at": "2026-11-09T09:26:25+00:00",
+  "retrieved_at": "2026-11-09T09:34:22+00:00",
   "products": [
     {
       "role": "normal",
-      "channel3_id": "ntGDx98",
-      "title": "Tune Buds 2 True Wireless Noise Cancelling Earbuds",
-      "brand": "HARMAN",
-      "image": "https://cdn.trychannel3.com/cleaned/v1/10a5e9d0-a956-4424-ba44-a76e52ab35bc?aid=01M6ZT2EPXMHDG2DNVQ5SFS3PQ&mid=Bteb",
-      "market_cents": 10995,
-      "market_offers": 1,
-      "market_low_cents": 10995,
-      "market_high_cents": 10995,
+      "channel3_id": "mNPImTf",
+      "title": "WF-C710N Active Noise Canceling True Wireless Bluetooth Earbuds",
+      "brand": "Sony",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/54dc35e2-c990-48a8-a25f-dd2c2e57834a?aid=01M6ZTGW5S4XDQSKS5ZPQKN79A&mid=ZQQu",
+      "market_cents": 9800,
+      "market_offers": 4,
+      "market_low_cents": 9800,
+      "market_high_cents": 12999,
       "market_domains": [
-        "dell.com"
+        "bestbuy.com",
+        "crutchfield.com",
+        "dell.com",
+        "focuscamera.com"
       ]
     },
     {
       "role": "inflated",
-      "channel3_id": "ioJaAnh",
-      "title": "Misopily Wireless Earbuds Bluetooth 5.4 In Ear Headphones",
-      "brand": "Misopily",
-      "image": "https://cdn.trychannel3.com/cleaned/v1/9db0e41f-ca49-4d66-8ecd-4abc77b36aa3?aid=01M6ZT2GY3VDJVE2N5RMBSEWY6&mid=Qqxu",
-      "market_cents": 5998,
-      "market_offers": 1,
-      "market_low_cents": 5998,
-      "market_high_cents": 5998,
+      "channel3_id": "SHmmOBm",
+      "title": "JBL Tune 235BT Wireless Earbud Headphones",
+      "brand": "JBL",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/2fad9e99-b486-40d9-9a11-8cbf28eea837?aid=01M6ZTGYJMY3SEJB06DG9GK83C&mid=K6RA",
+      "market_cents": 3995,
+      "market_offers": 4,
+      "market_low_cents": 3995,
+      "market_high_cents": 3995,
       "market_domains": [
-        "lowes.com"
+        "bestbuy.com",
+        "bhphotovideo.com",
+        "jbl.com",
+        "macys.com"
       ]
     },
     {
       "role": "out_of_stock",
-      "channel3_id": "2qJEEpF",
-      "title": "iLIVE Noise Cancelling Earbuds",
-      "brand": "iLIVE",
-      "image": "https://cdn.trychannel3.com/cleaned/v1/85c2dd13-dd6d-462a-83ec-f6bf2a783329?aid=01M6ZT2JRT9GW3KM8EWK0Z058X&mid=gJvb",
-      "market_cents": 6999,
-      "market_offers": 2,
+      "channel3_id": "3qeIMDH",
+      "title": "Beats Solo Buds",
+      "brand": "Beats",
+      "image": "https://cdn.trychannel3.com/f9fb236c-ad35-472f-96ab-a9ef1e7a677e?aid=01M6ZTH1QWZGFB27JRYNGBRZ4X&mid=oOY7",
+      "market_cents": 8159,
+      "market_offers": 4,
       "market_low_cents": 6999,
-      "market_high_cents": 6999,
+      "market_high_cents": 9299,
       "market_domains": [
-        "dickssportinggoods.com",
-        "golfgalaxy.com"
+        "6ave.com",
+        "beatsbydre.com",
+        "hsn.com",
+        "staples.com"
       ]
     },
     {
       "role": "swap_target",
-      "channel3_id": "2aDq4mN",
-      "title": "Ergonomic Wired Earphones With Inline Microphone Bowlift",
-      "brand": "Bowlift",
-      "image": "https://cdn.trychannel3.com/908a90fa-874f-40de-b7a9-949e1d122f90?aid=01M6ZT2ME77KSXWTQEVGCBG2RG&mid=83Z3",
-      "market_cents": 2899,
-      "market_offers": 1,
-      "market_low_cents": 2899,
-      "market_high_cents": 2899,
+      "channel3_id": "zwFWiw7",
+      "title": "EarPods with 3.5mm Plug",
+      "brand": "Apple",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/f350c0e6-6bd1-4c12-b1b8-673670b3ea4c?aid=01M6ZTH3MB5QCGB8MS542KD8AY&mid=DO3T",
+      "market_cents": 2198,
+      "market_offers": 6,
+      "market_low_cents": 1500,
+      "market_high_cents": 3102,
       "market_domains": [
-        "bowlift.com"
+        "6ave.com",
+        "abt.com",
+        "adorama.com",
+        "bestbuy.com",
+        "bhphotovideo.com",
+        "cdw.com"
       ]
     },
     {
       "role": "accessory",
-      "channel3_id": "R9LHygU",
-      "title": "SENECESLI Charging Case Compatible with S",
-      "brand": "Newegg.com",
-      "image": "https://cdn.trychannel3.com/cleaned/v1/883b5be6-40da-4e74-bccd-788865d83016?aid=01M6ZT2NX0AWDAN72C6NJHXQVQ&mid=LPzf",
-      "market_cents": 5799,
-      "market_offers": 1,
-      "market_low_cents": 5799,
-      "market_high_cents": 5799,
+      "channel3_id": "J3wqWMR",
+      "title": "Wireless Charging Earbud Case Cover",
+      "brand": "Bose",
+      "image": "https://cdn.trychannel3.com/d0bcc789-ac1f-4e3d-a8c9-bcbd30d65990?aid=01M6ZTH7WMJARWX01CP08AQ4C9&mid=KB7L",
+      "market_cents": 4900,
+      "market_offers": 3,
+      "market_low_cents": 4900,
+      "market_high_cents": 4900,
       "market_domains": [
-        "newegg.com"
+        "adorama.com",
+        "bhphotovideo.com",
+        "musicarts.com"
       ]
     }
   ]
