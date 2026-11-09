@@ -79,8 +79,10 @@ flowchart LR
    authorization**, so they never reach PayPal or the card issuer. Doubtful payments are **authorized and held**, and
    the buyer decides: capture or void.
 4. **Evidence.** Every decision gets an Ed25519-signed receipt and an entry in a hash-chained audit log. When PayPal
-   later reports a change (capture completed, refund, reversal), its webhook is believed only after PayPal verifies the
-   signature, and is then added to the same log.
+   reports a change by webhook, the event is believed only after PayPal verifies its signature, and is then added to
+   the same log as evidence (tested live with authorization created, capture completed and authorization voided).
+   Webhook events are recorded, never acted on: a refund or chargeback made outside AgentGuard is logged, not
+   handled (roadmap).
 
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.

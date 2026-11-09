@@ -126,3 +126,10 @@ def test_verified_event_lands_in_audit_chain_once():
 def test_malformed_body_is_400():
     c, _ = client(webhook_verifier=WebhookVerifier("id", "s", "WH", session=PayPalStub()))
     assert c.post("/api/webhooks/paypal", content=b"not json", headers=HDRS).status_code == 400
+
+
+def test_webhooks_have_their_own_looser_rate_limit():
+    c, _ = client(rate_per_min=1, webhook_verifier=WebhookVerifier("id", "s", "WH", session=PayPalStub()))
+    codes = [c.post("/api/webhooks/paypal", content=b"x", headers=HDRS).status_code for _ in range(5)]
+    assert codes == [400, 400, 400, 400, 429]     # 4x the paid-call limit, then 429 (PayPal retries later)
+    assert c.post("/api/demo/run", json={"scenario": "nope"}, headers=BUYER).status_code == 422   # separate budget

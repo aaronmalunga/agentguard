@@ -33,6 +33,7 @@ from fastapi.exceptions import RequestValidationError
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.concurrency import run_in_threadpool
 
 from agentguard.ai import mandate_parser
 from agentguard.ai.llm import AIUnavailable
@@ -105,6 +106,9 @@ _current: ContextVar[str] = ContextVar("agentguard_session", default="default")
 # Per-IP limit on the calls that spend PayPal sandbox or AI quota (judge test, 9 Nov). The public demo hands out its
 # tokens, so a loop could otherwise burn the shared Gemini free tier for every judge. Reads and checks are not limited.
 COSTLY = re.compile(r"^/api/(demo/run|pages|mandates/draft|payments|payments/[^/]+/(approve|reject))$")
+# Webhook calls can each trigger a PayPal verification call, so they get their own, looser limit (PayPal sends
+# 2-4 events per payment; a throttled event is retried by PayPal for up to 3 days, so nothing is lost).
+WEBHOOK = "/api/webhooks/paypal"
 
 
 class RateLimiter:
@@ -310,14 +314,16 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
 
     rate_per_min = rate_per_min if rate_per_min is not None else int(os.environ.get("AGENTGUARD_RATE_PER_MIN", "30"))
     limiter = RateLimiter(rate_per_min) if rate_per_min > 0 else None
+    hook_limiter = RateLimiter(rate_per_min * 4) if rate_per_min > 0 else None
 
     @app.middleware("http")
     async def label_mode(request: Request, call_next):
-        if limiter and request.method == "POST" and COSTLY.match(request.url.path):
-            ok, wait = limiter.allow(client_ip(request))
+        lim = (limiter if COSTLY.match(request.url.path) else hook_limiter if request.url.path == WEBHOOK else None)
+        if lim and request.method == "POST":
+            ok, wait = lim.allow(client_ip(request))
             if not ok:
                 return JSONResponse({"error": {"code": "rate_limited", "message": f"Too many paid calls from this "
-                                     f"address ({limiter.per_min} a minute). Try again in {wait} s."}},
+                                     f"address ({lim.per_min} a minute). Try again in {wait} s."}},
                                     status_code=429, headers={"Retry-After": str(wait)})
         sid = request.cookies.get(SESSION_COOKIE, "")
         _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
@@ -504,7 +510,8 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
             event_id, event_type = str(event["id"]), str(event["event_type"])
         except (ValueError, KeyError, TypeError):
             _err(400, "invalid_event", "Not a PayPal webhook event.")
-        ok, why = webhook_verifier.verify(dict(request.headers), event)
+        # verify() makes blocking calls to PayPal (1-4 s each); run it off the event loop so the site never freezes
+        ok, why = await run_in_threadpool(webhook_verifier.verify, dict(request.headers), event)
         if not ok:
             hooks["rejected"] += 1
             _err(400, "unverified", f"Signature not verified: {why}. Nothing was recorded.")
