@@ -129,10 +129,11 @@ class RateLimiter:
 
 
 def client_ip(request: Request) -> str:
-    """Render's proxy appends the address it saw to X-Forwarded-For, so the LAST entry is the one a client can't
-    forge by sending its own header."""
-    fwd = request.headers.get("x-forwarded-for", "")
-    return fwd.rsplit(",", 1)[-1].strip() if fwd else (request.client.host if request.client else "unknown")
+    """Render runs behind Cloudflare, which sets True-Client-IP to the visitor's address and overwrites any value a
+    client sends. Render's own X-Forwarded-For entry is its proxy (it changes per request, so it can't be the key:
+    found on the live site, 9 Nov). Off Render (local, tests) fall back to the socket address."""
+    ip = request.headers.get("true-client-ip") or request.headers.get("cf-connecting-ip")
+    return ip.strip() if ip else (request.client.host if request.client else "unknown")
 
 
 class Session:

@@ -309,13 +309,13 @@ def test_forged_session_cookie_is_ignored():
 
 def test_costly_calls_are_rate_limited_per_ip_and_reads_are_not():
     c, _ = client(rate_per_min=3)
-    hdr = {**BUYER, "X-Forwarded-For": "6.6.6.6, 1.2.3.4"}
+    hdr = {**BUYER, "True-Client-IP": "1.2.3.4", "X-Forwarded-For": "6.6.6.6"}
     codes = [c.post("/api/demo/run", json={"scenario": "nope"}, headers=hdr).status_code for _ in range(4)]
     assert codes == [422, 422, 422, 429]
     r = c.post("/api/demo/run", json={"scenario": "nope"}, headers=hdr)
     assert r.status_code == 429 and int(r.headers["Retry-After"]) >= 1
     assert c.get("/healthz", headers=hdr).status_code == 200            # reads are never limited
-    other = {**BUYER, "X-Forwarded-For": "6.6.6.6, 9.9.9.9"}           # same forged first entry, other real IP
+    other = {**BUYER, "True-Client-IP": "9.9.9.9", "X-Forwarded-For": "6.6.6.6"}   # forged XFF is ignored
     assert c.post("/api/demo/run", json={"scenario": "nope"}, headers=other).status_code == 422
 
 

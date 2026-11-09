@@ -12,7 +12,7 @@ Every significant decision, pivot and correction, newest first. Real architectur
   instruction): detector and `gemini-3.5-flash-lite` (1,648 ms, live, not recorded) both flagged it → ask first,
   PayPal never called. **Two gaps found and fixed:** (1) no per-IP limit on the calls that spend PayPal sandbox or the
   shared Gemini free quota → 30 a minute per IP on run/pages/draft/payments/approve/reject, 429 + Retry-After; reads
-  never limited; IP = last X-Forwarded-For entry (verify on Render after deploy). (2) a $10 trillion budget was
+  never limited; IP = Cloudflare's `True-Client-IP` (first try keyed on X-Forwarded-For, which on Render is the proxy and changes per request: live check, 32 calls, no 429). (2) a $10 trillion budget was
   accepted → mandates capped at $10,000 (larger spending needs a different approval path, roadmap). Tests 165 → 167.
 - **D14 done:** all 5 scripted demo scenarios now replay real recorded answers from `gemini-3.5-flash-lite` (recorded
   9 Nov; 1,542 / 1,407 / 870 / 891 / 1,221 ms). The poisoned page was **blocked by the real model**. Free daily quota
