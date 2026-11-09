@@ -1,0 +1,77 @@
+{
+  "source": "Channel3 product search (US, USD)",
+  "retrieved_at": "2026-11-09T09:26:25+00:00",
+  "products": [
+    {
+      "role": "normal",
+      "channel3_id": "ntGDx98",
+      "title": "Tune Buds 2 True Wireless Noise Cancelling Earbuds",
+      "brand": "HARMAN",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/10a5e9d0-a956-4424-ba44-a76e52ab35bc?aid=01M6ZT2EPXMHDG2DNVQ5SFS3PQ&mid=Bteb",
+      "market_cents": 10995,
+      "market_offers": 1,
+      "market_low_cents": 10995,
+      "market_high_cents": 10995,
+      "market_domains": [
+        "dell.com"
+      ]
+    },
+    {
+      "role": "inflated",
+      "channel3_id": "ioJaAnh",
+      "title": "Misopily Wireless Earbuds Bluetooth 5.4 In Ear Headphones",
+      "brand": "Misopily",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/9db0e41f-ca49-4d66-8ecd-4abc77b36aa3?aid=01M6ZT2GY3VDJVE2N5RMBSEWY6&mid=Qqxu",
+      "market_cents": 5998,
+      "market_offers": 1,
+      "market_low_cents": 5998,
+      "market_high_cents": 5998,
+      "market_domains": [
+        "lowes.com"
+      ]
+    },
+    {
+      "role": "out_of_stock",
+      "channel3_id": "2qJEEpF",
+      "title": "iLIVE Noise Cancelling Earbuds",
+      "brand": "iLIVE",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/85c2dd13-dd6d-462a-83ec-f6bf2a783329?aid=01M6ZT2JRT9GW3KM8EWK0Z058X&mid=gJvb",
+      "market_cents": 6999,
+      "market_offers": 2,
+      "market_low_cents": 6999,
+      "market_high_cents": 6999,
+      "market_domains": [
+        "dickssportinggoods.com",
+        "golfgalaxy.com"
+      ]
+    },
+    {
+      "role": "swap_target",
+      "channel3_id": "2aDq4mN",
+      "title": "Ergonomic Wired Earphones With Inline Microphone Bowlift",
+      "brand": "Bowlift",
+      "image": "https://cdn.trychannel3.com/908a90fa-874f-40de-b7a9-949e1d122f90?aid=01M6ZT2ME77KSXWTQEVGCBG2RG&mid=83Z3",
+      "market_cents": 2899,
+      "market_offers": 1,
+      "market_low_cents": 2899,
+      "market_high_cents": 2899,
+      "market_domains": [
+        "bowlift.com"
+      ]
+    },
+    {
+      "role": "accessory",
+      "channel3_id": "R9LHygU",
+      "title": "SENECESLI Charging Case Compatible with S",
+      "brand": "Newegg.com",
+      "image": "https://cdn.trychannel3.com/cleaned/v1/883b5be6-40da-4e74-bccd-788865d83016?aid=01M6ZT2NX0AWDAN72C6NJHXQVQ&mid=LPzf",
+      "market_cents": 5799,
+      "market_offers": 1,
+      "market_low_cents": 5799,
+      "market_high_cents": 5799,
+      "market_domains": [
+        "newegg.com"
+      ]
+    }
+  ]
+}
