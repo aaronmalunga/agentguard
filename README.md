@@ -184,6 +184,8 @@ rules: [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 - **Webhooks are verified before use** (PayPal's verify-webhook-signature postback; certificate URL must be on
   paypal.com; duplicates ignored). Unverified events are refused and nothing is recorded.
 - Secrets are only in environment variables, never in git or logs. Mandates are capped at $10,000.
+- **Browser headers:** no page can be framed by another site (so nobody can trick a click on Approve), plus a
+  strict Content Security Policy, `nosniff` and HSTS. Full list of risks and controls: [threat model](docs/threat-model.md).
 
 Vulnerabilities: see [SECURITY.md](SECURITY.md).
 
@@ -223,6 +225,7 @@ with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
 |---|---|
 | [Evaluation plan](docs/evaluation-plan.md) | Pre-registered metrics, pass marks and every result |
 | [AI governance](docs/ai-governance.md) | What the AI may and may not do, guardrails, model card |
+| [Threat model](docs/threat-model.md) | STRIDE + OWASP LLM Top 10: every risk → the control and test that cover it, and what's still open |
 | [Decision log](docs/decision-log.md) and [ADRs](docs/adr/) | Every decision, dated, with the reasons |
 | [Sources](docs/sources.md) | Every external claim, with publisher, date and limits |
 | [Reviews](docs/review-process.md) | Adversarial reviews after each build step, and what was fixed |

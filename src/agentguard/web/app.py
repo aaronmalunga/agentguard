@@ -12,6 +12,7 @@ labelled) · AGENTGUARD_VAULT_ID (sandbox: the buyer's saved card, made by scrip
 AGENTGUARD_SIGNING_KEY (receipts) · AGENTGUARD_AGENT_TOKEN / AGENTGUARD_BUYER_TOKEN · AGENTGUARD_DEMO=1.
 """
 
+import base64
 import hashlib
 import json
 import os
@@ -316,19 +317,24 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     limiter = RateLimiter(rate_per_min) if rate_per_min > 0 else None
     hook_limiter = RateLimiter(rate_per_min * 4) if rate_per_min > 0 else None
 
+    page_csp = _page_csp()
+
     @app.middleware("http")
     async def label_mode(request: Request, call_next):
         lim = (limiter if COSTLY.match(request.url.path) else hook_limiter if request.url.path == WEBHOOK else None)
+        resp = None
         if lim and request.method == "POST":
             ok, wait = lim.allow(client_ip(request))
             if not ok:
-                return JSONResponse({"error": {"code": "rate_limited", "message": f"Too many paid calls from this "
+                resp = JSONResponse({"error": {"code": "rate_limited", "message": f"Too many paid calls from this "
                                      f"address ({lim.per_min} a minute). Try again in {wait} s."}},
                                     status_code=429, headers={"Retry-After": str(wait)})
-        sid = request.cookies.get(SESSION_COOKIE, "")
-        _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
-        resp = await call_next(request)
+        if resp is None:
+            sid = request.cookies.get(SESSION_COOKIE, "")
+            _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
+            resp = await call_next(request)
         resp.headers["X-AgentGuard-PayPal"] = st.paypal_mode   # "fake" responses are simulated, never PayPal
+        _security_headers(resp, request.url.path, page_csp)
         return resp
 
     @app.exception_handler(FlowError)
@@ -585,6 +591,38 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
             return FileResponse(STATIC / "index.html")
 
     return app
+
+
+# Browser security headers (threat model E3, 9 Nov). The approval screen must never be framed by another site
+# (clickjacking an "Approve" click), so frame-ancestors 'none' + X-Frame-Options everywhere. The app page gets a strict
+# CSP: scripts only from this origin plus the one inline theme script, allowed by its hash. Styles allow inline
+# (the page and AG Grid set inline styles); AG Grid's icon font is a data: URI; product photos come from shops over HTTPS. FastAPI's /docs page loads
+# Swagger UI from a CDN, so it keeps only the framing, sniffing and transport headers.
+DOCS_PATHS = ("/docs", "/redoc")
+
+
+def _page_csp() -> str:
+    hashes = []
+    index = STATIC / "index.html"
+    if index.exists():
+        for body in re.findall(r"<script>(.*?)</script>", index.read_text(encoding="utf-8"), flags=re.DOTALL):
+            digest = base64.b64encode(hashlib.sha256(body.encode("utf-8")).digest()).decode()
+            hashes.append(f"'sha256-{digest}'")
+    return ("default-src 'self'; script-src 'self' " + " ".join(hashes) + "; style-src 'self' 'unsafe-inline'; "
+            "img-src 'self' https: data:; font-src 'self' data:; connect-src 'self'; object-src 'none'; "
+            "base-uri 'none'; form-action 'self'; frame-ancestors 'none'")
+
+
+def _security_headers(resp, path: str, page_csp: str) -> None:
+    h = resp.headers
+    h["X-Content-Type-Options"] = "nosniff"
+    h["X-Frame-Options"] = "DENY"
+    h["Referrer-Policy"] = "no-referrer"
+    h["Strict-Transport-Security"] = "max-age=31536000"
+    if path.startswith(DOCS_PATHS):
+        h["Content-Security-Policy"] = "frame-ancestors 'none'"
+    else:
+        h["Content-Security-Policy"] = page_csp
 
 
 def __getattr__(name):   # `uvicorn agentguard.web.app:app` builds the app on first access, not on import

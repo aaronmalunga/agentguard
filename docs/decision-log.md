@@ -3,6 +3,19 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 9 Nov 2026 (late) — Threat model (review J3)
+
+- **`docs/threat-model.md`:** STRIDE per trust boundary (agent, page, AI, PayPal, browser), money-path risks, OWASP Top
+  10 for LLM Applications 2025 (LLM01 injection and LLM06 excessive agency measured), each risk → control → test or
+  live run → status. Open items ranked: approval fatigue (20% held-out step-ups), per-agent keys (step 4), webhook
+  state machine (step 3), whole-chain rewrite, honour-period auto-void, mandate re-check at approval, dependency scan.
+- **Found while writing it and fixed (E3):** no browser security headers, so the approval page could be framed by
+  another site (clickjacking an Approve click). Now every response sends `frame-ancestors 'none'` + `X-Frame-Options:
+  DENY`, `nosniff`, `Referrer-Policy: no-referrer`, HSTS; the app page gets a strict CSP (scripts from this origin
+  plus the one inline theme script by SHA-256 hash, no `unsafe-eval`); `/docs` keeps Swagger's CDN. Checked in headless
+  Chrome against the real page: first run caught AG Grid's `data:` icon font being blocked → `font-src 'self' data:`;
+  second run zero CSP errors. Test `test_security_headers_on_app_and_api`; tests 180 → 181.
+
 ## 9 Nov 2026 (late) — Docs honesty (review J2)
 
 - **ADR-0006 amended:** the LLM bake-off was not run (no paid keys); `gemini-3.5-flash-lite` was chosen by constraint

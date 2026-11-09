@@ -68,6 +68,33 @@ def test_health_labels_simulated_paypal_and_ai_model():
     assert h["ok"] and "FakePayPal" in h["paypal"] and h["ai"] == "fake-model"
 
 
+def test_security_headers_on_app_and_api():
+    """Threat model E3: no page can be framed (clickjacking the Approve button); the app page gets a strict CSP whose
+    script hash matches the one inline script, so the theme script still runs and nothing else inline does."""
+    import base64
+    import hashlib
+    import re
+
+    from agentguard.web.app import STATIC
+    c, _ = client()
+    for path in ("/", "/healthz", "/api/audit", "/docs"):
+        h = c.get(path).headers
+        assert h["x-frame-options"] == "DENY" and "frame-ancestors 'none'" in h["content-security-policy"], path
+        assert h["x-content-type-options"] == "nosniff" and "max-age" in h["strict-transport-security"], path
+    csp = c.get("/").headers["content-security-policy"]
+    assert "script-src 'self' 'sha256-" in csp and "'unsafe-inline'" not in csp.split("style-src")[0]
+    assert "unsafe-eval" not in csp and "object-src 'none'" in csp
+    inline = re.findall(r"<script>(.*?)</script>", (STATIC / "index.html").read_text(encoding="utf-8"), flags=re.DOTALL)
+    assert inline, "the theme script is expected inline"
+    for body in inline:
+        assert base64.b64encode(hashlib.sha256(body.encode()).digest()).decode() in csp
+    assert c.get("/docs").headers["content-security-policy"] == "frame-ancestors 'none'"   # Swagger CDN still loads
+    limited, _ = client(rate_per_min=1)
+    for _i in range(2):
+        r = pay(limited, key=f"rl{_i}")
+    assert r.status_code == 429 and r.headers["x-frame-options"] == "DENY"   # early 429 still carries headers
+
+
 def test_no_token_is_401_and_agent_cannot_approve_or_read():
     c, _ = client()
     assert c.post("/api/payments", json=cart(), headers={"Idempotency-Key": "x"}).status_code == 401
