@@ -276,3 +276,29 @@ def test_trace_records_every_layer_with_timing():
     p = c.post("/api/demo/run", json={"scenario": "normal"}, headers=BUYER).json()["payment"]
     assert [t["layer"] for t in p["trace"]] == ["catalogue", "rules", "detector", "ai"]
     assert all(t["ms"] >= 0 for t in p["trace"])
+
+
+def test_each_demo_visitor_gets_their_own_budget_and_log():
+    from agentguard.web.app import DEMO_TOKENS
+    app = create_app(paypal_mode="fake", llm=FakeLLM(), clock=lambda: NOW, tokens=dict(DEMO_TOKENS), demo_mode=True)
+    a, b = TestClient(app), TestClient(app)
+    H = {"Authorization": "Bearer " + DEMO_TOKENS["buyer"]}
+    assert a.get("/api/demo/session").json()["session"] == "own" and "ag_demo" in a.cookies
+    b.get("/api/demo/session")
+    assert a.cookies["ag_demo"] != b.cookies["ag_demo"]
+    for _ in range(3):
+        a.post("/api/demo/run", json={"scenario": "inflated"}, headers=H)    # A spends $297 of $300 in holds
+    assert len(a.get("/api/payments", headers=H).json()) == 3
+    assert b.get("/api/payments", headers=H).json() == []                  # B sees nothing of A's
+    p = b.post("/api/demo/run", json={"scenario": "normal"}, headers=H).json()["payment"]
+    assert p["status"] == "captured"                                       # B's budget untouched
+    assert a.get("/api/audit/verify").json()["checked"] == 4 and b.get("/api/audit/verify").json()["checked"] == 2
+    a.post("/api/demo/reset", headers=H)
+    assert a.get("/api/payments", headers=H).json() == [] and len(b.get("/api/payments", headers=H).json()) == 1
+
+
+def test_forged_session_cookie_is_ignored():
+    c, st = client()
+    c.cookies.set("ag_demo", "../../etc")
+    pay(c)
+    assert len(st.session("default").svc.store.payments()) == 1

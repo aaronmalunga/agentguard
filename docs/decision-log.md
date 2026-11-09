@@ -3,6 +3,14 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 9 Nov 2026
+
+- **D14 done:** all 5 scripted demo scenarios now replay real recorded answers from `gemini-3.5-flash-lite` (recorded
+  9 Nov; 1,542 / 1,407 / 870 / 891 / 1,221 ms). The poisoned page was **blocked by the real model**. Free daily quota
+  resets at midnight US Pacific (10:00 SA in winter, not 09:00 as first assumed); recording now paces calls 8 s apart.
+- **Per-visitor demo sessions** (review U6): each judge's browser gets its own budget, payments and log, so judges
+  never spend or see each other's demo.
+
 ## 8 Nov 2026 (evening) — Web API, live-flow safeguards, v3 result
 
 - **D13 (Aaron, 16:05): front-end style C** (product-grade: decision trace with model + latency, phone-style

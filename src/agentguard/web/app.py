@@ -15,9 +15,14 @@ AGENTGUARD_SIGNING_KEY (receipts) · AGENTGUARD_AGENT_TOKEN / AGENTGUARD_BUYER_T
 import hashlib
 import json
 import os
+import re
 import secrets
+import threading
+import time
 import uuid
+from collections import OrderedDict
 from collections.abc import Callable
+from contextvars import ContextVar
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Annotated
@@ -92,12 +97,78 @@ class RunIn(BaseModel):
 
 
 # ------------------------------------------------------------------------------------------------ app state
+SESSION_COOKIE = "ag_demo"
+SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
+MAX_SESSIONS, SESSION_IDLE_S = 200, 2 * 3600
+_current: ContextVar[str] = ContextVar("agentguard_session", default="default")
+
+
+class Session:
+    """One visitor's demo: their own budget, payments, pages and hash-chained log (review U6, 9 Nov).
+    PayPal gateway, AI model and receipt signing key are shared."""
+
+    def __init__(self, st: "State", db_path: str):
+        self.st, self.db_path, self.last_seen = st, db_path, time.monotonic()
+        self.reset()
+
+    def reset(self):
+        st = self.st
+        self.svc = PaymentService(Store(self.db_path), st.gateway, mandates={}, registry=demo.REGISTRY,
+                                  payment_source=st.payment_source, clock=st.clock, layers=st.layers,
+                                  llm=st.llm, catalogue=demo.catalogue(), merchant_names=demo.NAMES,
+                                  signer=st.signer)
+        self.pages: dict[str, dict] = {}
+        for key, sc in demo.SCENARIOS.items():
+            self.add_page(sc["page"], f"SoundMart: {sc['label']}", "demo shop (synthetic)", page_id=f"demo-{key}")
+        self.svc.activate_mandate(demo.demo_mandate(st.clock()))
+
+    def add_page(self, text: str, title: str, source: str, page_id: str | None = None) -> dict:
+        pid = page_id or "page_" + uuid.uuid4().hex[:12]
+        self.pages[pid] = {"id": pid, "title": title, "text": text, "source": source,
+                           "sha256": hashlib.sha256(text.encode()).hexdigest(),
+                           "captured_at": self.st.clock().isoformat(timespec="seconds")}
+        return self.pages[pid]
+
+
 class State:
     def __init__(self, *, paypal_mode: str, llm, layers, clock, signer, tokens, db_path: str):
         self.paypal_mode, self.llm, self.layers, self.clock = paypal_mode, llm, layers, clock
         self.signer, self.tokens, self.db_path = signer, tokens, db_path
         self.gateway, self.payment_source = self._paypal()
-        self.reset()
+        self.sessions: OrderedDict[str, Session] = OrderedDict()
+        self._lock = threading.Lock()
+        self.session()   # the shared "default" session: API clients without a demo cookie (agents, scripts, tests)
+
+    def session(self, sid: str | None = None) -> Session:
+        sid = sid or _current.get()
+        with self._lock:
+            now = time.monotonic()
+            for old in [k for k, v in self.sessions.items() if k != "default" and now - v.last_seen > SESSION_IDLE_S]:
+                del self.sessions[old]
+            s = self.sessions.get(sid)
+            if s is None:
+                s = self.sessions[sid] = Session(self, self.db_path if sid == "default" else ":memory:")
+                while len(self.sessions) > MAX_SESSIONS:
+                    victim = next(k for k in self.sessions if k != "default")
+                    del self.sessions[victim]
+            s.last_seen = now
+            self.sessions.move_to_end(sid)
+            return s
+
+    # the current request's session (set by middleware from the demo cookie)
+    @property
+    def svc(self) -> PaymentService:
+        return self.session().svc
+
+    @property
+    def pages(self) -> dict:
+        return self.session().pages
+
+    def add_page(self, *a, **kw) -> dict:
+        return self.session().add_page(*a, **kw)
+
+    def reset(self):
+        self.session().reset()
 
     def _paypal(self):
         if self.paypal_mode == "sandbox":
@@ -105,7 +176,7 @@ class State:
             vault_id = os.environ.get("AGENTGUARD_VAULT_ID")
             if not vault_id:
                 raise RuntimeError("AGENTGUARD_PAYPAL=sandbox needs AGENTGUARD_VAULT_ID "
-                                   "(run scripts/create_vault.py once)")
+                                   "(run scripts/smoke_api.py once)")
             return PayPalGateway(load_settings()), (lambda _m: vaulted_card(vault_id))
         from agentguard.config import load_settings
         from agentguard.paypal.fake import FakePayPal
@@ -116,23 +187,6 @@ class State:
         gw = PayPalGateway(load_settings(paypal_env="sandbox", paypal_client_id="fake", paypal_client_secret="fake",
                                          _env_file=None), http_client_instance=s)
         return gw, (lambda _m: vaulted_card("VAULT-DEMO-FAKE"))
-
-    def reset(self):
-        self.svc = PaymentService(Store(self.db_path), self.gateway, mandates={}, registry=demo.REGISTRY,
-                                  payment_source=self.payment_source, clock=self.clock, layers=self.layers,
-                                  llm=self.llm, catalogue=demo.catalogue(), merchant_names=demo.NAMES,
-                                  signer=self.signer)
-        self.pages: dict[str, dict] = {}
-        for key, sc in demo.SCENARIOS.items():
-            self.add_page(sc["page"], f"SoundMart: {sc['label']}", "demo shop (synthetic)", page_id=f"demo-{key}")
-        self.svc.activate_mandate(demo.demo_mandate(self.clock()))
-
-    def add_page(self, text: str, title: str, source: str, page_id: str | None = None) -> dict:
-        pid = page_id or "page_" + uuid.uuid4().hex[:12]
-        self.pages[pid] = {"id": pid, "title": title, "text": text, "source": source,
-                           "sha256": hashlib.sha256(text.encode()).hexdigest(),
-                           "captured_at": self.clock().isoformat(timespec="seconds")}
-        return self.pages[pid]
 
 
 def view(p: dict) -> dict:
@@ -197,6 +251,8 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
 
     @app.middleware("http")
     async def label_mode(request: Request, call_next):
+        sid = request.cookies.get(SESSION_COOKIE, "")
+        _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
         resp = await call_next(request)
         resp.headers["X-AgentGuard-PayPal"] = st.paypal_mode   # "fake" responses are simulated, never PayPal
         return resp
@@ -363,11 +419,22 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     # ---------------------------------------------------------------- demo helpers
     if demo_mode:
         @app.get("/api/demo/session", tags=["demo"])
-        def session():
-            """Public demo only: hands the browser the demo tokens. Never enabled with real tokens."""
+        def session(request: Request):
+            """Public demo only: hands the browser the demo tokens and its own demo session (own budget, payments
+            and log), so judges never see or spend each other's demo. Never enabled with real tokens."""
             if st.tokens != DEMO_TOKENS:
                 _err(404, "not_found", "Demo session is off.")
-            return {"buyer_token": st.tokens["buyer"], "agent_token": st.tokens["agent"]}
+            sid = request.cookies.get(SESSION_COOKIE, "")
+            fresh = not SESSION_ID.match(sid)
+            if fresh:
+                sid = secrets.token_urlsafe(18)
+            st.session(sid)
+            resp = JSONResponse({"buyer_token": st.tokens["buyer"], "agent_token": st.tokens["agent"],
+                                 "session": "own" if sid != "default" else "shared"})
+            if fresh:
+                resp.set_cookie(SESSION_COOKIE, sid, max_age=SESSION_IDLE_S, httponly=True, samesite="lax",
+                                secure=request.url.scheme == "https")
+            return resp
 
         @app.get("/api/demo/scenarios", tags=["demo"])
         def scenarios():
