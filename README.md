@@ -3,6 +3,11 @@
 > **Status: early development (hackathon v1, started 14 Oct 2026).** PayPal **sandbox only** — no real money moves.
 > Independent project; not affiliated with or endorsed by PayPal. Entry to the PayPal AI Hackathon 2026.
 
+**Try it live:** https://agentguard-jg01.onrender.com (PayPal sandbox; free hosting sleeps when idle, so the first load can take ~50 s).
+API docs: `/docs` · health: `/healthz` · receipt public key: `/api/receipts/public-key`
+(`vjllLCW9VIHYToxLBKlbvBcplEOXfRlDCdTjGwWfu3Q=`, key id `70808e9e1d43deb2`). Verify any receipt offline:
+`uv run python scripts/verify_receipt.py receipt.json vjllLCW9VIHYToxLBKlbvBcplEOXfRlDCdTjGwWfu3Q=`
+
 AI agents can now pay on people's behalf. When an agent buys something its owner never wanted, the payment was
 *authorized* (the agent had permission) but not *intended*. PayPal's own merchant research says liability for disputed
 agent purchases is "in flux" ([sources](docs/sources.md#s1)).
