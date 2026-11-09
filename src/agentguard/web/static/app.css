@@ -21,7 +21,7 @@
   --approve: #6fcfa6; --hold: #f0cf5a; --ask: #9ab0ff; --block: #f2877a;
   --approve-well: rgba(111, 207, 166, 0.10); --hold-well: rgba(240, 207, 90, 0.10);
   --ask-well: rgba(154, 176, 255, 0.10); --block-well: rgba(242, 135, 122, 0.10);
-  --emblem-bg: #1d1e21; --img-well: #fbfaf7; --glass: rgba(25, 25, 28, 0.66); --glass-strong: rgba(30, 30, 34, 0.78); --rain: #8f8d93;
+  --emblem-bg: #1d1e21; --img-well: #fbfaf7; --tile-hi: #e9e5de; --tile-lo: #cfc9bf; --glass: rgba(25, 25, 28, 0.66); --glass-strong: rgba(30, 30, 34, 0.78); --rain: #8f8d93;
   --font-mark: "Michroma", "Arial Black", sans-serif;
   --font-body: "Reddit Sans", "Segoe UI", system-ui, sans-serif;
   --r-1: 14px; --r-2: 10px; --r-3: 8px;
@@ -31,7 +31,7 @@
 @media (prefers-color-scheme: light) {
   :root:not([data-mode="dark"]) {
     color-scheme: light;
-    --paper: #f1efeb; --paper-2: #faf9f6; --well: #e9e6e1; --rule: #d3cfc8; --rule-2: #e2ded7;
+    --paper: #f1efeb; --paper-2: #faf9f6; --well: #e9e6e1; --rule: #d3cfc8; --rule-2: #e2ded7; --tile-hi: #f6f3ee; --tile-lo: #e4dfd7;
     --ink: #1b1a18; --ink-2: #3f3d39; --muted: #5f5c56;
     --accent: #8f4e25; --accent-ink: #fffaf5; --focus: #8f4e25;
     --approve: #1c6e4e; --hold: #765000; --ask: #3f55c4; --block: #ac3326;
@@ -42,7 +42,7 @@
 }
 :root[data-mode="light"] {
   color-scheme: light;
-  --paper: #f1efeb; --paper-2: #faf9f6; --well: #e9e6e1; --rule: #d3cfc8; --rule-2: #e2ded7;
+  --paper: #f1efeb; --paper-2: #faf9f6; --well: #e9e6e1; --rule: #d3cfc8; --rule-2: #e2ded7; --tile-hi: #f6f3ee; --tile-lo: #e4dfd7;
   --ink: #1b1a18; --ink-2: #3f3d39; --muted: #5f5c56;
   --accent: #8f4e25; --accent-ink: #fffaf5; --focus: #8f4e25;
   --approve: #1c6e4e; --hold: #765000; --ask: #3f55c4; --block: #ac3326;
@@ -192,14 +192,20 @@ details summary { cursor: pointer; min-height: 44px; display: flex; align-items:
 .status.neutral { color: var(--muted); }
 
 /* phone card */
-.phone { width: 100%; max-width: 300px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;
+.phone { width: 100%; max-width: 360px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;
   padding: 20px 16px; border-radius: 30px; background: var(--glass-strong); border: 1px solid var(--rule);
   backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%); }
-.product-img { width: 100%; max-height: 140px; object-fit: contain; border-radius: var(--r-2); background: var(--img-well); padding: 8px; }
+/* Product photos come on white. The tile is a soft warm grey and the photo is multiplied into it, so the white
+   disappears and the product sits on the tile instead of a bright white box. */
+.product-tile { display: flex; align-items: center; justify-content: center; height: 150px; padding: 14px; border-radius: var(--r-2);
+  background: radial-gradient(120% 90% at 50% 35%, var(--tile-hi), var(--tile-lo)); box-shadow: inset 0 0 0 1px var(--rule-2); }
+.product-img { max-width: 100%; max-height: 100%; object-fit: contain; mix-blend-mode: multiply; }
 .phone h3 { font-size: var(--text-xl); line-height: 1.15; font-weight: 600; }
 .facts { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; }
 .facts dt { font-size: var(--text-s); color: var(--muted); }
-.facts dd { margin: 0; text-align: right; font-size: 15px; font-weight: 500; overflow-wrap: anywhere; }
+.facts dd { margin: 0; text-align: right; font-size: 15px; font-weight: 500; overflow-wrap: break-word; }
+.facts dt.wide, .facts dd.wide { grid-column: 1 / -1; text-align: left; }
+.facts dd.wide { margin-top: -6px; }
 .agent-says { margin: 0; padding: 12px; border-radius: var(--r-2); border: 1px dashed var(--rule); font-size: 14px;
   color: var(--muted); overflow-wrap: anywhere; }
 .phone .actions { display: flex; flex-direction: column; gap: 8px; }
@@ -219,6 +225,7 @@ h3.sub { font-size: var(--text-m); font-weight: 600; padding-top: 8px; border-to
   --ag-range-selection-border-color: var(--focus); --ag-input-focus-border-color: var(--focus);
   --ag-wrapper-border-radius: 14px; --ag-active-color: var(--accent); --ag-cell-horizontal-padding: 14px; }
 .ag-theme-quartz .ag-header-cell-text { font-weight: 500; text-transform: none; letter-spacing: 0; }
+.ag-theme-quartz .cell-mid { display: flex; align-items: center; }
 
 /* proof */
 .figures { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule); }

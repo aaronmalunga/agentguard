@@ -11,7 +11,7 @@
 <link rel="preload" href="/static/vendor/fonts/reddit-sans-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="preload" href="/static/vendor/fonts/michroma-latin-400-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="/static/vendor/ag-grid/ag-grid.min.css">
-<link rel="stylesheet" href="/static/vendor/ag-grid/ag-theme-quartz-no-font.min.css">
+<link rel="stylesheet" href="/static/vendor/ag-grid/ag-theme-quartz.min.css">
 <link rel="stylesheet" href="/static/app.css">
 <link rel="icon" href="/static/img/emblem.jpg">
 </head>
@@ -56,13 +56,13 @@
         <section class="panel" aria-labelledby="agent-h">
           <div class="panel-head">
             <h2 class="panel-title" id="agent-h">The agent shops</h2>
-            <span class="hint" id="dataSource">SoundMart, a made-up shop</span>
+            <span class="hint" id="dataSource">Demo shop · real products and prices from Channel3</span>
           </div>
           <div class="chips" role="group" aria-label="Choose a scenario" id="scenarios">
             <span class="skeleton" style="width:60%"></span>
           </div>
           <details id="pasteBox">
-            <summary>Paste your own shop page (red team)</summary>
+            <summary>Try your own shop page</summary>
             <div style="display:flex;flex-direction:column;gap:10px;padding-top:8px">
               <label for="pasteText">Page text the agent will read
                 <textarea id="pasteText" maxlength="8000" placeholder="Pulse ANC wireless earbuds, $69.00. Try hiding an instruction for AI agents in here."></textarea>
@@ -71,7 +71,7 @@
             </div>
           </details>
           <figure class="well" style="margin:0;display:flex;flex-direction:column;gap:8px">
-            <figcaption class="hint">The page it read, captured by AgentGuard (not reported by the agent)</figcaption>
+            <figcaption class="hint">The shop page the agent read</figcaption>
             <p class="page-text" id="pageText">Pick a scenario to send the agent shopping.</p>
             <p class="hidden-text" id="hiddenText" hidden></p>
           </figure>
@@ -101,9 +101,9 @@
     <section id="view-inbox" data-view="inbox" aria-labelledby="inbox-h" hidden style="display:flex;flex-direction:column;gap:24px">
       <div class="page-head">
         <h1 id="inbox-h">Waiting for you</h1>
-        <p class="lede-side">Held payments are authorised on PayPal but not taken. Saying no voids the hold at no fee.</p>
+        <p class="lede-side">Held payments are reserved on PayPal, not taken. Say no and the money is released, at no cost.</p>
       </div>
-      <div id="inboxList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px"></div>
+      <div id="inboxList" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,360px));gap:20px"></div>
     </section>
 
     <!-- ===================== CONSOLE ===================== -->

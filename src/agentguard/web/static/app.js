@@ -60,6 +60,9 @@
     blocked: ["block", "Blocked"], declined: ["block", "Declined by PayPal"], voided: ["neutral", "Voided, $0 fee"],
     rejected: ["neutral", "Rejected, never charged"], unknown: ["hold", "Checking with PayPal"], deciding: ["neutral", "Deciding"]
   };
+  function nice(list) { return list.map(function (x) { x = x.replace(/_/g, " "); return x.charAt(0).toUpperCase() + x.slice(1); }).join(", "); }
+  function shopNames(list) { return list.map(function (x) { return { soundmart: "SoundMart" }[x] || x; }).join(", "); }
+  function day(iso) { var d = new Date(iso); return isNaN(d) ? iso.slice(0, 10) : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" }); }
   function statusChip(st) { var s = STATUS[st] || ["neutral", st]; return '<span class="status ' + s[0] + '">' + esc(s[1]) + "</span>"; }
   function coinKind(st) { return { captured: "approve", held: "hold", awaiting_buyer: "hold", blocked: "block", declined: "block" }[st]; }
   function needsBuyer(p) { return p.status === "held" || p.status === "awaiting_buyer"; }
@@ -106,7 +109,7 @@
   function loadCatalogue() {
     return api("/api/catalogue").then(function (c) {
       c.products.forEach(function (p) { catalogueBySku[p.sku] = p; catalogueByTitle[p.title] = p; });
-      var src = $("dataSource"); if (src) src.textContent = c.merchant + ". Products: " + c.source + ".";
+      var src = $("dataSource"); if (src) src.textContent = "Demo shop · real products and prices from Channel3";
     }).catch(function () {});
   }
 
@@ -139,8 +142,8 @@
     if (!t) return "";
     var c = (t.checks || [])[0], ms = t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms", text, extra = "";
     if (c && c.live) {
-      text = c.offers >= 3 ? "Usually " + money(c.median_cents) + ", the middle price across " + c.offers + " shops (" +
-          money(c.low_cents) + " to " + money(c.high_cents) + ")"
+      text = c.offers >= 3 ? "Usually " + money(c.median_cents) + ", the middle price across " + c.offers + " shops" +
+          (c.low_cents !== c.high_cents ? " (" + money(c.low_cents) + " to " + money(c.high_cents) + ")" : "")
         : "Sold elsewhere for " + money(c.median_cents) + " at " + c.offers + " shop" + (c.offers === 1 ? "" : "s") +
           ". Few shops, so this can only ask you, never block.";
       extra = '<div class="ai-line">Channel3 product catalogue' + (c.cached ? ", checked in the last 15 minutes" : ", checked now") + "</div>";
@@ -165,7 +168,7 @@
       else if (ai.model) {
         var rec = ai.provider && ai.provider.indexOf("recorded") === 0;
         ms = Math.round(ai.latency_ms).toLocaleString() + " ms";
-        extra = '<div class="ai-line">' + esc(ai.model) + (rec ? ", answer " + esc(ai.provider) + " (replayed; time measured when recorded)" : ", live") + "</div>";
+        extra = '<div class="ai-line">' + esc(ai.model) + (rec ? " · replay of a real answer " + esc(ai.provider) : " · live answer") + "</div>";
       }
     }
     if (fs.length > 1) text += " (+" + (fs.length - 1) + " more)";
@@ -176,7 +179,7 @@
 
   var OUTCOME = {
     captured: ["approve", "Approved and captured", function (p) { return "PayPal order " + (p.paypal_order_id || "") + ". Receipt signed."; }],
-    held: ["hold", "Held on PayPal, waiting for Thandi", function () { return "Authorised, not taken. If she says no, the hold is voided at no fee."; }],
+    held: ["hold", "Held on PayPal, waiting for Thandi", function () { return "The money is reserved, not taken. If she says no, it’s released and nothing is charged."; }],
     awaiting_buyer: ["ask", "Asked Thandi first", function () { return "PayPal has not been called. Nothing has touched her card."; }],
     blocked: ["block", "Blocked before PayPal was called", function () { return "Nothing touched her card."; }],
     declined: ["block", "PayPal declined the card", function (p) { return "PayPal status " + (p.paypal_status || "") + ". Nothing was charged."; }],
@@ -210,17 +213,17 @@
       declined: "Your card was declined" }[p.status] || "Payment update";
     var rowsH = "";
     items.forEach(function (i) {
-      rowsH += "<dt>Item</dt><dd>" + esc(i.quantity + " × " + i.title) + "</dd><dt>Price</dt><dd class=\"num\">" + esc(i.price) + "</dd>";
+      rowsH += "<dt class=\"wide\">Item</dt><dd class=\"wide\">" + esc(i.quantity + " × " + i.title) + "</dd><dt>Price</dt><dd class=\"num\">" + esc(i.price) + "</dd>";
       if (i.usual_price && i.usual_price !== i.price) rowsH += "<dt>Usually</dt><dd class=\"num\">" + esc(i.usual_price) +
         (i.usual_price_source ? '<div class="hint" style="font-weight:400">' + esc(i.usual_price_source) + "</div>" : "") + "</dd>";
     });
     if (f.shop) rowsH += "<dt>Shop</dt><dd>" + esc(f.shop) + "</dd>";
     if (f.total) rowsH += "<dt>Total</dt><dd class=\"num\">" + esc(f.total) + "</dd>";
-    if (f.budget_left) rowsH += "<dt>Budget before this</dt><dd class=\"num\">" + esc(f.budget_left) + "</dd>";
+    if (f.budget_left) rowsH += "<dt>Budget left</dt><dd class=\"num\">" + esc(f.budget_left) + "</dd>";
     var why = (p.findings || []).filter(function (x) { return x.level !== "approve"; })[0];
     var h = '<span class="hint">AgentGuard, for Thandi</span><h3>' + esc(title) + "</h3>";
     var img = productImage(items[0] && items[0].title);
-    if (img) h += '<img class="product-img" src="' + esc(img) + '" alt="' + esc(items[0].title) + '" loading="lazy">';
+    if (img) h += '<div class="product-tile"><img class="product-img" src="' + esc(img) + '" alt="' + esc(items[0].title) + '" loading="lazy"></div>';
     if (rowsH) h += '<dl class="facts well">' + rowsH + "</dl>";
     if (why) h += '<p class="hint">Why: ' + esc(why.reason) + "</p>";
     h += '<p class="hint">Every fact above was checked by AgentGuard.</p>';
@@ -228,7 +231,7 @@
     if (needsBuyer(p)) {
       h += '<div class="actions"><button class="btn primary" type="button" data-act="approve" data-id="' + esc(p.id) + '">Yes, pay ' + esc(f.total || "") + "</button>" +
         '<button class="btn" type="button" data-act="reject" data-id="' + esc(p.id) + '">' + (p.status === "held" ? "No, release the hold" : "No, cancel it") + "</button></div>" +
-        '<p class="hint">' + (p.status === "held" ? "Yes takes the held money on PayPal. No voids the hold at no fee." : "Nothing has touched your card yet.") + "</p>";
+        '<p class="hint">' + (p.status === "held" ? "Yes: PayPal takes the payment. No: the reserved money is released and nothing is charged." : "Nothing has touched your card yet.") + "</p>";
     }
     return h;
   }
@@ -312,11 +315,11 @@
     };
     ActCell.prototype.getGui = function () { return this.e; };
     var opts = {
-      rowData: [], getRowId: function (p) { return p.data.id; },
+      rowData: [], getRowId: function (p) { return p.data.id; }, rowHeight: 52, headerHeight: 44,
       columnDefs: [
         { headerName: "Time", field: "created_at", width: 110, sort: "desc", valueFormatter: function (p) { return (p.value || "").slice(11, 19); } },
-        { headerName: "Status", field: "status", width: 190, cellRenderer: StatusCell, filter: true },
-        { headerName: "Buyer", cellRenderer: ActCell, width: 190, sortable: false },
+        { headerName: "Status", field: "status", width: 170, cellRenderer: StatusCell, filter: true, cellClass: "cell-mid" },
+        { headerName: "Buyer", cellRenderer: ActCell, width: 200, sortable: false, cellClass: "cell-mid" },
         { headerName: "Item", valueGetter: function (p) { return itemsOf(p.data); }, flex: 1.2, minWidth: 180 },
         { headerName: "Total", field: "amount", width: 110, type: "rightAligned", cellClass: "num" },
         { headerName: "Why", valueGetter: function (p) { return firstReason(p.data); }, flex: 2, minWidth: 240, tooltipValueGetter: function (p) { return firstReason(p.data); } },
@@ -393,8 +396,8 @@
         "<dt>Version</dt><dd>" + md.version + '</dd><dt>Budget</dt><dd class="num">' + money(md.budget_total_cents) +
         '</dd><dt>Spent or held</dt><dd class="num">' + money((b.spent_cents || 0) + (b.reserved_cents || 0)) +
         '</dd><dt>Per item, up to</dt><dd class="num">' + money(md.max_item_price_cents) + "</dd><dt>How many of each</dt><dd>" + md.max_quantity_per_item +
-        "</dd><dt>Kinds of item</dt><dd>" + esc(md.allowed_categories.join(", ").replace(/_/g, " ")) + "</dd><dt>Shops</dt><dd>" + esc(md.allowed_merchants.join(", ")) +
-        "</dd><dt>Valid until</dt><dd>" + esc(md.expires_at.slice(0, 10)) + "</dd></dl>" +
+        "</dd><dt>Kinds of item</dt><dd>" + esc(nice(md.allowed_categories)) + "</dd><dt>Shops</dt><dd>" + esc(shopNames(md.allowed_merchants)) +
+        "</dd><dt>Valid until</dt><dd>" + esc(day(md.expires_at)) + "</dd></dl>" +
         '<p class="hint">Fingerprint <span class="num">' + esc(m.fingerprint.slice(0, 20)) + "…</span> goes into every PayPal order, so the rules can’t be changed after the fact.</p>";
     }).catch(function (err) { $("activeRules").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
   }
@@ -407,8 +410,8 @@
       h += '<p class="hint">Drafted by ' + esc(r.ai.model) + " in " + Math.round(r.ai.latency_ms).toLocaleString() + " ms. Not active yet.</p>";
       h += '<dl class="facts well"><dt>Budget</dt><dd class="num">' + money(d.budget_total_cents) + '</dd><dt>Per item, up to</dt><dd class="num">' +
         money(d.max_item_price_cents) + "</dd><dt>How many of each</dt><dd>" + d.max_quantity_per_item + "</dd><dt>Kinds of item</dt><dd>" +
-        esc(d.allowed_categories.join(", ").replace(/_/g, " ")) + "</dd><dt>Shops</dt><dd>" + esc(d.allowed_merchants.join(", ")) + "</dd><dt>Valid until</dt><dd>" +
-        esc(d.expires_at.slice(0, 10)) + "</dd></dl>";
+        esc(nice(d.allowed_categories)) + "</dd><dt>Shops</dt><dd>" + esc(shopNames(d.allowed_merchants)) + "</dd><dt>Valid until</dt><dd>" +
+        esc(day(d.expires_at)) + "</dd></dl>";
       (r.clarifications || []).forEach(function (q) { h += '<p class="hint">The AI asks: ' + esc(q) + "</p>"; });
       h += '<button class="btn primary" type="button" id="approveRules">Approve these rules</button>';
       out.innerHTML = h;
