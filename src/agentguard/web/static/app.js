@@ -85,19 +85,30 @@
       pb.classList.toggle("warn", h.paypal.indexOf("FakePayPal") === 0);
       pb.title = h.paypal;
       $("aiBadge").textContent = "AI: " + h.ai;
+      $("aiBadge").title = "Market prices: " + (h.market || "off");
     }).catch(function () { $("paypalBadge").textContent = "Server unreachable"; $("paypalBadge").classList.add("warn"); });
   }
 
   /* ------------------------------------------------------------ shop and agent */
   var LAYERS = [
     ["catalogue", "Shop records", "Items and prices taken from the shop’s own records, not from the agent"],
+    ["market", "Market price", ""],
     ["rules", "Buyer’s rules", "Inside every rule the buyer set"],
     ["detector", "Page check", "Nothing on the page talks to AI agents"],
     ["ai", "AI intent check", "Matches what the buyer asked for"]
   ];
-  var LAYER_NAMES = { catalogue: "Shop records", rules: "Buyer’s rules", detector: "Page check", ai: "AI intent check" };
+  var LAYER_NAMES = { catalogue: "Shop records", market: "Market price (Channel3)", rules: "Buyer’s rules", detector: "Page check", ai: "AI intent check" };
   var MARK = { approve: ["ok", "✓"], hold: ["hold", "‖"], ask_first: ["ask", "?"], block: ["block", "✕"] };
   var RANK = { approve: 0, hold: 1, ask_first: 2, block: 3 };
+
+  var catalogueBySku = {}, catalogueByTitle = {};
+  function productImage(title) { var p = catalogueByTitle[title]; return p && p.image; }
+  function loadCatalogue() {
+    return api("/api/catalogue").then(function (c) {
+      c.products.forEach(function (p) { catalogueBySku[p.sku] = p; catalogueByTitle[p.title] = p; });
+      var src = $("dataSource"); if (src) src.textContent = c.merchant + ". Products: " + c.source + ".";
+    }).catch(function () {});
+  }
 
   function renderScenarios() {
     var box = $("scenarios"); box.innerHTML = "";
@@ -124,8 +135,22 @@
     $("outcome").hidden = true; $("traceHint").textContent = "Checking now";
   }
 
+  function marketStep(p, t) {
+    if (!t) return "";
+    var c = (t.checks || [])[0], ms = t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms", text, extra = "";
+    if (c && c.live) {
+      text = "Usually " + money(c.median_cents) + " across " + c.offers + " shop" + (c.offers === 1 ? "" : "s") +
+        " (from " + money(c.low_cents) + " to " + money(c.high_cents) + ")";
+      extra = '<div class="ai-line">Channel3 product catalogue' + (c.cached ? ", checked in the last 15 minutes" : ", checked now") + "</div>";
+      if (c.cached) ms = "cached";
+    } else { text = "Channel3 didn’t answer in time, so AgentGuard used the shop’s stored reference price"; }
+    return '<li><span class="mark ok" aria-label="checked">✓</span><div><div class="step-layer">Market price</div><div class="step-text">' +
+      esc(text) + "</div>" + extra + '</div><span class="step-ms num">' + esc(ms) + "</span></li>";
+  }
+
   function stepFor(p, L) {
     var t = (p.trace || []).filter(function (x) { return x.layer === L[0]; })[0];
+    if (L[0] === "market") return marketStep(p, t);
     var fs = (p.findings || []).filter(function (f) { return (f.source || "rules") === L[0]; });
     fs.sort(function (a, b) { return RANK[b.level] - RANK[a.level]; });
     var level = fs.length ? fs[0].level : "approve", text = fs.length ? fs[0].reason : L[2];
@@ -184,13 +209,16 @@
     var rowsH = "";
     items.forEach(function (i) {
       rowsH += "<dt>Item</dt><dd>" + esc(i.quantity + " × " + i.title) + "</dd><dt>Price</dt><dd class=\"num\">" + esc(i.price) + "</dd>";
-      if (i.usual_price && i.usual_price !== i.price) rowsH += "<dt>Usually</dt><dd class=\"num\">" + esc(i.usual_price) + "</dd>";
+      if (i.usual_price && i.usual_price !== i.price) rowsH += "<dt>Usually</dt><dd class=\"num\">" + esc(i.usual_price) +
+        (i.usual_price_source ? '<div class="hint" style="font-weight:400">' + esc(i.usual_price_source) + "</div>" : "") + "</dd>";
     });
     if (f.shop) rowsH += "<dt>Shop</dt><dd>" + esc(f.shop) + "</dd>";
     if (f.total) rowsH += "<dt>Total</dt><dd class=\"num\">" + esc(f.total) + "</dd>";
     if (f.budget_left) rowsH += "<dt>Budget before this</dt><dd class=\"num\">" + esc(f.budget_left) + "</dd>";
     var why = (p.findings || []).filter(function (x) { return x.level !== "approve"; })[0];
     var h = '<span class="hint">AgentGuard, for Thandi</span><h3>' + esc(title) + "</h3>";
+    var img = productImage(items[0] && items[0].title);
+    if (img) h += '<img class="product-img" src="' + esc(img) + '" alt="' + esc(items[0].title) + '" loading="lazy">';
     if (rowsH) h += '<dl class="facts well">' + rowsH + "</dl>";
     if (why) h += '<p class="hint">Why: ' + esc(why.reason) + "</p>";
     h += '<p class="hint">Every fact above was checked by AgentGuard.</p>';
@@ -455,6 +483,7 @@
     TOKEN = null; toast("This server is not in demo mode, so the buyer screens need a token.");
   }).then(function () {
     loadHealth();
+    loadCatalogue();
     return api("/api/demo/scenarios").then(function (s) { scenarios = s; renderScenarios(); }).catch(function () { $("scenarios").innerHTML = '<span class="hint">Scenarios are only available in demo mode.</span>'; });
   }).then(function () { route(); refreshCount(); });
 })();

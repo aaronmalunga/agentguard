@@ -38,6 +38,7 @@ class FakeLLM:
 
 
 def client(llm=None, **kw):
+    kw.setdefault("demo_source", "synthetic")
     app = create_app(paypal_mode="fake", llm=llm or FakeLLM(), clock=lambda: NOW,
                      tokens={"agent": "a-tok", "buyer": "b-tok"}, demo_mode=True, **kw)
     return TestClient(app), app.state.ag
@@ -280,7 +281,8 @@ def test_trace_records_every_layer_with_timing():
 
 def test_each_demo_visitor_gets_their_own_budget_and_log():
     from agentguard.web.app import DEMO_TOKENS
-    app = create_app(paypal_mode="fake", llm=FakeLLM(), clock=lambda: NOW, tokens=dict(DEMO_TOKENS), demo_mode=True)
+    app = create_app(paypal_mode="fake", llm=FakeLLM(), clock=lambda: NOW, tokens=dict(DEMO_TOKENS), demo_mode=True,
+                     demo_source="synthetic")
     a, b = TestClient(app), TestClient(app)
     H = {"Authorization": "Bearer " + DEMO_TOKENS["buyer"]}
     assert a.get("/api/demo/session").json()["session"] == "own" and "ag_demo" in a.cookies

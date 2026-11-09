@@ -21,7 +21,7 @@
   --approve: #6fcfa6; --hold: #f0cf5a; --ask: #9ab0ff; --block: #f2877a;
   --approve-well: rgba(111, 207, 166, 0.10); --hold-well: rgba(240, 207, 90, 0.10);
   --ask-well: rgba(154, 176, 255, 0.10); --block-well: rgba(242, 135, 122, 0.10);
-  --emblem-bg: #1d1e21; --glass: rgba(25, 25, 28, 0.66); --glass-strong: rgba(30, 30, 34, 0.78); --rain: #8f8d93;
+  --emblem-bg: #1d1e21; --img-well: #fbfaf7; --glass: rgba(25, 25, 28, 0.66); --glass-strong: rgba(30, 30, 34, 0.78); --rain: #8f8d93;
   --font-mark: "Michroma", "Arial Black", sans-serif;
   --font-body: "Reddit Sans", "Segoe UI", system-ui, sans-serif;
   --r-1: 14px; --r-2: 10px; --r-3: 8px;
@@ -195,6 +195,7 @@ details summary { cursor: pointer; min-height: 44px; display: flex; align-items:
 .phone { width: 100%; max-width: 300px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px;
   padding: 20px 16px; border-radius: 30px; background: var(--glass-strong); border: 1px solid var(--rule);
   backdrop-filter: blur(16px) saturate(130%); -webkit-backdrop-filter: blur(16px) saturate(130%); }
+.product-img { width: 100%; max-height: 140px; object-fit: contain; border-radius: var(--r-2); background: var(--img-well); padding: 8px; }
 .phone h3 { font-size: var(--text-xl); line-height: 1.15; font-weight: 600; }
 .facts { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; }
 .facts dt { font-size: var(--text-s); color: var(--muted); }

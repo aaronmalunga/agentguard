@@ -88,9 +88,10 @@ def check(request: PaymentRequest, mandate: Mandate | None, *, now: datetime, re
                         f"the quantity is at most {mandate.max_quantity_per_item}"))
         if it.reference_price and price > to_cents(it.reference_price) * PRICE_HOLD_RATIO:
             ref = to_cents(it.reference_price)
+            where = f" ({it.reference_source})" if it.reference_source else ""
             add(Finding("price_above_reference", "hold",
                         f"'{it.title}' is {fmt(price)} here, {round(100 * (price - ref) / ref)}% above its usual "
-                        f"{fmt(ref)}.", f"the price is at most {fmt(int(ref * PRICE_HOLD_RATIO))}"))
+                        f"{fmt(ref)}{where}.", f"the price is at most {fmt(int(ref * PRICE_HOLD_RATIO))}"))
 
     # 6. Budget (snapshot check; the atomic reservation in storage is the real guard against races, ADR-0007)
     remaining = mandate.budget_total_cents - spent_cents
@@ -118,7 +119,8 @@ def verified_facts(request: PaymentRequest, mandate: Mandate | None, spent_cents
     total = sum(line_total_cents(i.unit_price, i.quantity) for i in request.items)
     facts = {"shop": request.payee.display_name, "total": fmt(total),
              "items": [{"title": i.title, "quantity": i.quantity, "price": fmt(to_cents(i.unit_price)),
-                        "usual_price": fmt(to_cents(i.reference_price)) if i.reference_price else None}
+                        "usual_price": fmt(to_cents(i.reference_price)) if i.reference_price else None,
+                        "usual_price_source": i.reference_source}
                        for i in request.items],
              "ship_to": f"{request.ship_to.name}, {request.ship_to.line1}, {request.ship_to.city}"}
     if mandate is not None:

@@ -28,6 +28,9 @@ class Product:
     reference_price_cents: int | None = None
     reference_source: str = "synthetic demo data"
     in_stock: bool = True
+    channel3_id: str | None = None      # real product in Channel3's catalogue: market price looked up per decision
+    image: str | None = None
+    brand: str | None = None
 
 
 class CartLine(BaseModel):
@@ -40,15 +43,17 @@ class CartLine(BaseModel):
 
 
 class Catalogue:
-    def __init__(self, products: list[Product]):
+    def __init__(self, products: list[Product], market=None):
         self.products = {p.sku: p for p in products}
+        self.market = market            # agentguard.market.channel3.Channel3, or None
 
     def get(self, sku: str) -> Product | None:
         return self.products.get(sku)
 
-    def resolve(self, lines: list[CartLine]) -> tuple[list[Item], list[Finding]]:
-        """Build the cart from the catalogue. Unknown SKUs block; agent claims that disagree are findings."""
-        items, found = [], []
+    def resolve(self, lines: list[CartLine]) -> tuple[list[Item], list[Finding], list[dict]]:
+        """Build the cart from the catalogue. Unknown SKUs block; agent claims that disagree are findings.
+        Returns (items, findings, market checks made)."""
+        items, found, market = [], [], []
         for line in lines:
             p = self.products.get(line.sku)
             if p is None:
@@ -71,10 +76,24 @@ class Catalogue:
                                      f"The agent described this item as '{line.claimed_title[:80]}', but the shop's "
                                      f"records say '{p.title}'.", "the agent's description matches the shop's "
                                      "records, or you confirm", source="catalogue"))
+            ref_cents, ref_src = self._reference(p, market)
             items.append(Item(sku=p.sku, title=p.title, category=p.category, unit_price=p.price_cents / 100,
-                              reference_price=(p.reference_price_cents / 100) if p.reference_price_cents else None,
+                              reference_price=(ref_cents / 100) if ref_cents else None, reference_source=ref_src,
                               quantity=line.quantity, merchant_id=p.merchant_id))
-        return items, found
+        return items, found, market
+
+    def _reference(self, p: Product, market: list[dict]) -> tuple[int | None, str | None]:
+        """Live market price from Channel3 when available; otherwise the stored reference, labelled as stored."""
+        if self.market is not None and p.channel3_id:
+            mp = self.market.market_price(p.channel3_id)
+            if mp:
+                market.append({"sku": p.sku, "title": p.title, "channel3_id": p.channel3_id,
+                               "median_cents": mp.reference_cents, "low_cents": mp.low_cents,
+                               "high_cents": mp.high_cents, "offers": mp.offers, "domains": list(mp.domains),
+                               "ms": mp.latency_ms, "cached": mp.from_cache, "live": True})
+                return mp.reference_cents, f"Channel3, median of {mp.offers} shop{'s' if mp.offers != 1 else ''}"
+            market.append({"sku": p.sku, "title": p.title, "channel3_id": p.channel3_id, "live": False})
+        return p.reference_price_cents, (p.reference_source if p.reference_price_cents else None)
 
 
 class AgentCart(BaseModel):

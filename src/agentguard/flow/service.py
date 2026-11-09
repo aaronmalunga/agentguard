@@ -75,9 +75,14 @@ class PaymentService:
         if self.catalogue is None:
             raise FlowError("no merchant catalogue configured")
         t0 = time.perf_counter()
-        items, found = self.catalogue.resolve(cart.lines)
-        cat_step = {"layer": "catalogue", "ms": round((time.perf_counter() - t0) * 1000, 2),
+        items, found, market = self.catalogue.resolve(cart.lines)
+        total_ms = (time.perf_counter() - t0) * 1000
+        market_ms = sum(m.get("ms", 0) for m in market if not m.get("cached"))
+        cat_step = {"layer": "catalogue", "ms": round(max(total_ms - market_ms, 0), 2),
                     "codes": [f.code for f in found]}
+        steps = [cat_step]
+        if market:
+            steps.append({"layer": "market", "ms": round(market_ms, 2), "codes": [], "checks": market})
         if len(page_text) > PAGE_CHECK_LIMIT:   # review 8 Nov F8: the AI reads the first 4,000 characters only
             found.append(Finding("page_too_long_to_check", "ask_first",
                                  f"The shop page is {len(page_text):,} characters; the AI check reads the first "
@@ -90,7 +95,7 @@ class PaymentService:
                 found.append(Finding("unknown_mandate", "block", f"No mandate '{cart.mandate_id}' exists for this "
                                      "buyer.", "the agent cites a mandate the buyer actually approved"))
             d = combine(found, agent_note=cart.agent_note)
-            d.trace = [cat_step]
+            d.trace = steps
             pid = self._new_record(request_key, cart.mandate_id, cart.mandate_version, None, 0, "USD", d,
                                    cart_json=cart.model_dump_json(), page_source=page_source, agent_id=cart.agent_id)
             return self._done("decision", self.store.update_payment(pid, status="blocked"))
@@ -101,7 +106,7 @@ class PaymentService:
                              currency=mandate.currency if mandate else "USD", items=items, ship_to=ship_to,
                              agent_id=cart.agent_id, agent_note=cart.agent_note)
         return self.submit(req, request_key=request_key, page_text=page_text, pre_findings=found,
-                           cart_json=cart.model_dump_json(), page_source=page_source, pre_trace=[cat_step])
+                           cart_json=cart.model_dump_json(), page_source=page_source, pre_trace=steps)
 
     # ------------------------------------------------------------------ agent side
     def submit(self, request: PaymentRequest, *, request_key: str, page_text: str = "",

@@ -15,6 +15,7 @@ class Item(BaseModel):
     category: str
     unit_price: float = Field(gt=0)          # dollars as the agent states them; converted to cents in checks
     reference_price: float | None = None    # catalogue / market price from the merchant system, not the agent
+    reference_source: str | None = None     # where the reference came from, e.g. "Channel3, 6 shops" (shown to buyer)
     quantity: int = Field(ge=1)
     merchant_id: str
 

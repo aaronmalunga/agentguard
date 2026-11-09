@@ -115,10 +115,10 @@ class Session:
         st = self.st
         self.svc = PaymentService(Store(self.db_path), st.gateway, mandates={}, registry=demo.REGISTRY,
                                   payment_source=st.payment_source, clock=st.clock, layers=st.layers,
-                                  llm=st.llm, catalogue=demo.catalogue(), merchant_names=demo.NAMES,
+                                  llm=st.llm, catalogue=st.demo.catalogue(st.market), merchant_names=demo.NAMES,
                                   signer=st.signer)
         self.pages: dict[str, dict] = {}
-        for key, sc in demo.SCENARIOS.items():
+        for key, sc in st.demo.scenarios.items():
             self.add_page(sc["page"], f"SoundMart: {sc['label']}", "demo shop (synthetic)", page_id=f"demo-{key}")
         self.svc.activate_mandate(demo.demo_mandate(st.clock()))
 
@@ -131,9 +131,10 @@ class Session:
 
 
 class State:
-    def __init__(self, *, paypal_mode: str, llm, layers, clock, signer, tokens, db_path: str):
+    def __init__(self, *, paypal_mode: str, llm, layers, clock, signer, tokens, db_path: str, demo_data, market):
         self.paypal_mode, self.llm, self.layers, self.clock = paypal_mode, llm, layers, clock
         self.signer, self.tokens, self.db_path = signer, tokens, db_path
+        self.demo, self.market = demo_data, market
         self.gateway, self.payment_source = self._paypal()
         self.sessions: OrderedDict[str, Session] = OrderedDict()
         self._lock = threading.Lock()
@@ -203,7 +204,8 @@ def view(p: dict) -> dict:
 # ------------------------------------------------------------------------------------------------ factory
 def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = None,
                clock: Callable[[], datetime] | None = None, signer: ReceiptSigner | None = None,
-               tokens: dict | None = None, demo_mode: bool | None = None, db_path: str | None = None) -> FastAPI:
+               tokens: dict | None = None, demo_mode: bool | None = None, db_path: str | None = None,
+               demo_source: str = "auto", market=None) -> FastAPI:
     from dotenv import load_dotenv  # same .env files as the scripts; real env vars win
 
     from agentguard.config import ENV_FILES
@@ -228,7 +230,11 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     demo_mode = demo_mode if demo_mode is not None else os.environ.get("AGENTGUARD_DEMO", "1") == "1"
     tokens = tokens or {"agent": os.environ.get("AGENTGUARD_AGENT_TOKEN") or DEMO_TOKENS["agent"],
                         "buyer": os.environ.get("AGENTGUARD_BUYER_TOKEN") or DEMO_TOKENS["buyer"]}
-    st = State(paypal_mode=paypal_mode, llm=llm if ai != "off" else None, layers=layers,
+    if market is None and os.environ.get("CHANNEL3_API_KEY"):
+        from agentguard.market.channel3 import Channel3
+        market = Channel3()
+    st = State(paypal_mode=paypal_mode, llm=llm if ai != "off" else None, layers=layers, demo_data=demo.build(demo_source),
+               market=market,
                clock=clock or (lambda: datetime.now(UTC)), signer=signer or ReceiptSigner(), tokens=tokens,
                db_path=db_path or os.environ.get("AGENTGUARD_DB", ":memory:"))
 
@@ -282,15 +288,17 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                 else "FakePayPal (simulated, no real PayPal calls)",
                 "ai": "off (rules + detector only)" if st.llm is None else getattr(st.llm, "model", "unknown"),
                 "receipt_key": "ephemeral (demo)" if st.signer.ephemeral else "configured",
-                "audit_entries": a["checked"], "demo": demo_mode}
+                "audit_entries": a["checked"], "demo": demo_mode,
+                "market": "Channel3 (live market prices)" if st.market is not None else "off",
+                "product_data": st.demo.source}
 
     # ---------------------------------------------------------------- shop data (public)
     @app.get("/api/catalogue", tags=["shop"])
     def catalogue():
-        return {"source": "synthetic demo data", "merchant": demo.MERCHANT_NAME,
+        return {"source": st.demo.source, "merchant": f"{demo.MERCHANT_NAME} (a made-up shop)",
                 "products": [{**p.__dict__, "price": fmt(p.price_cents),
                               "reference_price": fmt(p.reference_price_cents) if p.reference_price_cents else None}
-                             for p in demo.PRODUCTS]}
+                             for p in st.demo.products]}
 
     @app.get("/api/pages/{page_id}", tags=["shop"])
     def page(page_id: str):
@@ -439,17 +447,17 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         @app.get("/api/demo/scenarios", tags=["demo"])
         def scenarios():
             return [{"id": k, "label": v["label"], "expect": v["expect"], "page_id": f"demo-{k}"}
-                    for k, v in demo.SCENARIOS.items()]
+                    for k, v in st.demo.scenarios.items()]
 
         @app.post("/api/demo/run", tags=["demo"], dependencies=[buyer])
         def run(body: RunIn):
             """Run the scripted demo agent on a scenario or a pasted page, through the same guard as any agent."""
-            sc = demo.SCENARIOS.get(body.scenario or "")
+            sc = st.demo.scenarios.get(body.scenario or "")
             page_id = f"demo-{body.scenario}" if sc else body.page_id
             pg = st.pages.get(page_id or "") or _err(422, "unknown_scenario", "Give a known scenario or page_id.")
             m = st.svc.mandates.get("thandi-earbuds") or next(iter(st.svc.mandates.values()))
             cart = demo.naive_agent_cart(pg["text"], m, sc["lines"] if sc else None,
-                                         sc.get("claimed_price") if sc else None)
+                                         sc.get("claimed_price") if sc else None, products=st.demo.products)
             steps = [f"Agent opened {pg['title']}",
                      f"Agent chose: {', '.join(f'{ln.quantity} × {ln.sku}' for ln in cart.lines)}",
                      "Agent asked AgentGuard to pay"]
