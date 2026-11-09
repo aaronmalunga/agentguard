@@ -16,6 +16,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from agentguard.money import to_cents
 
+# Sanity cap (judge test, 9 Nov): an agent mandate above $10,000 is refused here. Bigger spending needs a
+# different approval path (roadmap), not a bigger number in the same form.
+MAX_BUDGET_CENTS = 1_000_000
+
 
 class Address(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
@@ -38,7 +42,7 @@ class Mandate(BaseModel):
     version: int = Field(ge=1)
     buyer_instruction: str = Field(min_length=1, max_length=2000)
     currency: Literal["USD"]
-    budget_total_cents: int = Field(gt=0)
+    budget_total_cents: int = Field(gt=0, le=MAX_BUDGET_CENTS)
     max_item_price_cents: int = Field(gt=0)
     max_quantity_per_item: int = Field(ge=1)
     allowed_categories: tuple[str, ...] = Field(min_length=1)

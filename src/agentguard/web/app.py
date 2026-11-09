@@ -102,6 +102,38 @@ SESSION_ID = re.compile(r"^[A-Za-z0-9_-]{16,64}$")
 MAX_SESSIONS, SESSION_IDLE_S = 200, 2 * 3600
 _current: ContextVar[str] = ContextVar("agentguard_session", default="default")
 
+# Per-IP limit on the calls that spend PayPal sandbox or AI quota (judge test, 9 Nov). The public demo hands out its
+# tokens, so a loop could otherwise burn the shared Gemini free tier for every judge. Reads and checks are not limited.
+COSTLY = re.compile(r"^/api/(demo/run|pages|mandates/draft|payments|payments/[^/]+/(approve|reject))$")
+
+
+class RateLimiter:
+    """Sliding 60-second window per client. In memory, one process: enough for the demo, not for a cluster."""
+
+    def __init__(self, per_min: int):
+        self.per_min, self.hits, self._lock = per_min, {}, threading.Lock()
+
+    def allow(self, key: str) -> tuple[bool, int]:
+        now = time.monotonic()
+        with self._lock:
+            q = [t for t in self.hits.get(key, []) if now - t < 60]
+            if len(q) >= self.per_min:
+                self.hits[key] = q
+                return False, int(60 - (now - q[0])) + 1
+            q.append(now)
+            self.hits[key] = q
+            if len(self.hits) > 5000:   # forget the oldest clients; bounded memory
+                for k in list(self.hits)[:1000]:
+                    del self.hits[k]
+            return True, 0
+
+
+def client_ip(request: Request) -> str:
+    """Render's proxy appends the address it saw to X-Forwarded-For, so the LAST entry is the one a client can't
+    forge by sending its own header."""
+    fwd = request.headers.get("x-forwarded-for", "")
+    return fwd.rsplit(",", 1)[-1].strip() if fwd else (request.client.host if request.client else "unknown")
+
 
 class Session:
     """One visitor's demo: their own budget, payments, pages and hash-chained log (review U6, 9 Nov).
@@ -205,7 +237,8 @@ def view(p: dict) -> dict:
 def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = None,
                clock: Callable[[], datetime] | None = None, signer: ReceiptSigner | None = None,
                tokens: dict | None = None, demo_mode: bool | None = None, db_path: str | None = None,
-               demo_source: str = "auto", market=None) -> FastAPI:
+               demo_source: str = "auto", market=None,
+               rate_per_min: int | None = None) -> FastAPI:
     from dotenv import load_dotenv  # same .env files as the scripts; real env vars win
 
     from agentguard.config import ENV_FILES
@@ -255,8 +288,17 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         return JSONResponse({"error": {"code": "invalid_request", "message": "The request doesn't match the API "
                                        "schema.", "fields": fields}}, status_code=422)
 
+    rate_per_min = rate_per_min if rate_per_min is not None else int(os.environ.get("AGENTGUARD_RATE_PER_MIN", "30"))
+    limiter = RateLimiter(rate_per_min) if rate_per_min > 0 else None
+
     @app.middleware("http")
     async def label_mode(request: Request, call_next):
+        if limiter and request.method == "POST" and COSTLY.match(request.url.path):
+            ok, wait = limiter.allow(client_ip(request))
+            if not ok:
+                return JSONResponse({"error": {"code": "rate_limited", "message": f"Too many paid calls from this "
+                                     f"address ({limiter.per_min} a minute). Try again in {wait} s."}},
+                                    status_code=429, headers={"Retry-After": str(wait)})
         sid = request.cookies.get(SESSION_COOKIE, "")
         _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
         resp = await call_next(request)

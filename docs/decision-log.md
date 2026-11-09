@@ -5,6 +5,15 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 ## 9 Nov 2026
 
+- **Judge pressure test of the live site (16:00–16:20 SA), fetch calls from the public page.** Held: 8 bad mandates
+  refused with 422 (zero/negative budget, item price above budget, EUR/unknown currency, expired or inverted dates,
+  empty categories); same mandate twice → 409; agent token can't approve, reject or set rules (403); buyer token can't
+  submit payments (403); bad or missing token → 401. **Live AI on a page it had never seen** (hidden gift-card
+  instruction): detector and `gemini-3.5-flash-lite` (1,648 ms, live, not recorded) both flagged it → ask first,
+  PayPal never called. **Two gaps found and fixed:** (1) no per-IP limit on the calls that spend PayPal sandbox or the
+  shared Gemini free quota → 30 a minute per IP on run/pages/draft/payments/approve/reject, 429 + Retry-After; reads
+  never limited; IP = last X-Forwarded-For entry (verify on Render after deploy). (2) a $10 trillion budget was
+  accepted → mandates capped at $10,000 (larger spending needs a different approval path, roadmap). Tests 165 → 167.
 - **D14 done:** all 5 scripted demo scenarios now replay real recorded answers from `gemini-3.5-flash-lite` (recorded
   9 Nov; 1,542 / 1,407 / 870 / 891 / 1,221 ms). The poisoned page was **blocked by the real model**. Free daily quota
   resets at midnight US Pacific (10:00 SA in winter, not 09:00 as first assumed); recording now paces calls 8 s apart.
