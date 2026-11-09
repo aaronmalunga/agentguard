@@ -1,0 +1,31 @@
+# Render Blueprint for the AgentGuard judge demo (ADR-0002). PayPal SANDBOX only: the app refuses anything else.
+# Secrets are entered in the Render dashboard (sync: false), never committed.
+services:
+  - type: web
+    name: agentguard
+    runtime: python
+    plan: free                     # decision D8: free now (sleeps when idle); paid during judging decided by 30 Nov
+    region: frankfurt
+    buildCommand: pip install uv==0.9.5 && uv sync --frozen --no-dev
+    startCommand: uv run --no-dev uvicorn agentguard.web.app:app --host 0.0.0.0 --port $PORT --proxy-headers --forwarded-allow-ips='*'
+    healthCheckPath: /healthz
+    autoDeploy: true
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.12.7"
+      - key: PAYPAL_ENV
+        value: sandbox
+      - key: AGENTGUARD_PAYPAL
+        value: sandbox
+      - key: AGENTGUARD_DEMO
+        value: "1"
+      - key: PAYPAL_CLIENT_ID
+        sync: false
+      - key: PAYPAL_CLIENT_SECRET
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: AGENTGUARD_VAULT_ID
+        sync: false
+      - key: AGENTGUARD_SIGNING_KEY
+        sync: false

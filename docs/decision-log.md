@@ -8,6 +8,12 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **D14 done:** all 5 scripted demo scenarios now replay real recorded answers from `gemini-3.5-flash-lite` (recorded
   9 Nov; 1,542 / 1,407 / 870 / 891 / 1,221 ms). The poisoned page was **blocked by the real model**. Free daily quota
   resets at midnight US Pacific (10:00 SA in winter, not 09:00 as first assumed); recording now paces calls 8 s apart.
+- **Live check through the web app (Aaron, 11:02): 8/8 as expected** against the real PayPal sandbox: normal →
+  captured (order `3G536656BB068221X`), poisoned → blocked (PayPal never called), inflated → held → buyer rejects →
+  voided (`3L326523V8849980F`), out-of-stock swap → held (`15W78274PM189173V`), agent lies → asked first (PayPal never
+  called), receipt verifies (3/3 checks), audit chain verifies (7 entries). AI answers in this run were the recorded
+  real answers (D14), not new calls. `spike/results/2026-11-09_1102_api_smoke.json`.
+- **Render Blueprint** (`render.yaml`): free plan, health check `/healthz`, secrets entered in the dashboard only.
 - **Per-visitor demo sessions** (review U6): each judge's browser gets its own budget, payments and log, so judges
   never spend or see each other's demo.
 
