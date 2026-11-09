@@ -79,8 +79,7 @@ plugin's Python skills (client set-up, OAuth, error handling, testing):
 5. Stub the OAuth token endpoint separately in tests.
 
 Our own tests then caught two SDK traps the plugin pointed towards (an optional field sent as `null` instead of
-omitted; a network error escaping as a raw exception). Result: the gateway passed **9/9** live sandbox checks on first
-run (5 Nov) and the whole app **8/8** through the web API (9 Nov). Evidence: [decision log, 5 Nov](docs/decision-log.md),
+omitted; a network error escaping as a raw exception). Result: the gateway passed **9/9** live sandbox checks (5 Nov) and the whole app **8/8** through the web API (9 Nov). Evidence: [decision log, 5 Nov](docs/decision-log.md),
 [PayPal developer feedback log](docs/paypal-feedback.md) rows 7–10, `spike/results/`.
 
 ## AI usage
