@@ -139,8 +139,10 @@
     if (!t) return "";
     var c = (t.checks || [])[0], ms = t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms", text, extra = "";
     if (c && c.live) {
-      text = "Usually " + money(c.median_cents) + " across " + c.offers + " shop" + (c.offers === 1 ? "" : "s") +
-        " (from " + money(c.low_cents) + " to " + money(c.high_cents) + ")";
+      text = c.offers >= 3 ? "Usually " + money(c.median_cents) + ", the middle price across " + c.offers + " shops (" +
+          money(c.low_cents) + " to " + money(c.high_cents) + ")"
+        : "Sold elsewhere for " + money(c.median_cents) + " at " + c.offers + " shop" + (c.offers === 1 ? "" : "s") +
+          ". Few shops, so this can only ask you, never block.";
       extra = '<div class="ai-line">Channel3 product catalogue' + (c.cached ? ", checked in the last 15 minutes" : ", checked now") + "</div>";
       if (c.cached) ms = "cached";
     } else { text = "Channel3 didn’t answer in time, so AgentGuard used the shop’s stored reference price"; }

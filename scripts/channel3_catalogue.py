@@ -19,14 +19,22 @@ load_dotenv(ROOT.parent / ".env")
 load_dotenv(ROOT / ".env")
 OUT = ROOT / "src" / "agentguard" / "web" / "channel3_catalogue.json"
 
-# role -> (query, min $, max $, words the title must NOT contain)
+# role -> (queries, min $, max $, words the title must NOT contain). Brand queries first: well-known products are sold
+# by many retailers, so the market median rests on several shops, not one (review 9 Nov: "median of 1 shop").
 ROLES = {
-    "normal":       ("wireless noise cancelling earbuds", 50, 140, ("case", "tips", "wired", "refurb")),
-    "inflated":     ("wireless earbuds bluetooth", 35, 85, ("case", "tips", "wired", "refurb")),
-    "out_of_stock": ("noise cancelling earbuds", 60, 145, ("case", "tips", "wired", "refurb")),
-    "swap_target":  ("wired earphones with microphone", 20, 140, ("wireless", "bluetooth", "case")),
-    "accessory":    ("earbuds charging case replacement", 10, 70, ("earphones with mic",)),
+    "normal":       (["Sony wireless noise cancelling earbuds", "JBL noise cancelling wireless earbuds",
+                      "Soundcore noise cancelling earbuds", "wireless noise cancelling earbuds"], 50, 140,
+                     ("case", "tips", "wired", "refurb", "renewed")),
+    "inflated":     (["JBL Tune wireless earbuds", "Skullcandy wireless earbuds", "Soundcore wireless earbuds",
+                      "wireless earbuds bluetooth"], 30, 85, ("case", "tips", "wired", "refurb", "renewed")),
+    "out_of_stock": (["Jabra wireless earbuds", "Beats wireless earbuds", "Bose wireless earbuds",
+                      "noise cancelling earbuds"], 60, 145, ("case", "tips", "wired", "refurb", "renewed")),
+    "swap_target":  (["Apple EarPods wired", "Sony wired earphones", "JBL wired earphones",
+                      "wired earphones with microphone"], 12, 80, ("wireless", "bluetooth", "case", "refurb")),
+    "accessory":    (["earbuds replacement ear tips", "AirPods Pro case cover", "earbuds charging case"], 8, 60,
+                     ("earphones with mic", "refurb")),
 }
+MIN_SHOPS = 3
 
 
 def main():
@@ -35,18 +43,21 @@ def main():
     if not c3.enabled:
         sys.exit("CHANNEL3_API_KEY is not set in .env")
     picked, used = [], set()
-    for role, (q, lo, hi, avoid) in ROLES.items():
-        found = None
-        for p in c3.search(q, limit=20, max_price=hi):
-            title = p.get("title", "")
-            if p.get("id") in used or any(w in title.lower() for w in avoid):
-                continue
-            mp = summarise(p)
-            if mp and lo * 100 <= mp.reference_cents <= hi * 100:
-                found = (p, mp)
+    for role, (queries, lo, hi, avoid) in ROLES.items():
+        best = None   # most shops wins; a product sold by MIN_SHOPS+ shops ends the search early
+        for q in queries:
+            for p in c3.search(q, limit=20, max_price=hi):
+                title = p.get("title", "")
+                if p.get("id") in used or any(w in title.lower() for w in avoid):
+                    continue
+                mp = summarise(p)
+                if mp and lo * 100 <= mp.reference_cents <= hi * 100 and (best is None or mp.offers > best[1].offers):
+                    best = (p, mp)
+            if best and best[1].offers >= MIN_SHOPS:
                 break
+        found = best
         if not found:
-            print(f"[FAIL] {role:<13} nothing suitable for '{q}'")
+            print(f"[FAIL] {role:<13} nothing suitable")
             continue
         p, mp = found
         used.add(p["id"])
@@ -57,8 +68,9 @@ def main():
                        "image": img, "market_cents": mp.reference_cents, "market_offers": mp.offers,
                        "market_low_cents": mp.low_cents, "market_high_cents": mp.high_cents,
                        "market_domains": list(mp.domains)})
-        print(f"[OK  ] {role:<13} {p['title'][:60]:<60} market ${mp.reference_cents / 100:.2f} "
-              f"({mp.offers} offers)")
+        flag = "OK  " if mp.offers >= MIN_SHOPS else "THIN"
+        print(f"[{flag}] {role:<13} {p['title'][:60]:<60} market ${mp.reference_cents / 100:.2f} "
+              f"({mp.offers} shops)")
     OUT.write_text(json.dumps({"source": "Channel3 product search (US, USD)",
                                "retrieved_at": datetime.now(UTC).isoformat(timespec="seconds"),
                                "products": picked}, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")

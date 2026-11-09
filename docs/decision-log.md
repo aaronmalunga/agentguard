@@ -14,6 +14,11 @@ Every significant decision, pivot and correction, newest first. Real architectur
   called), receipt verifies (3/3 checks), audit chain verifies (7 entries). AI answers in this run were the recorded
   real answers (D14), not new calls. `spike/results/2026-11-09_1102_api_smoke.json`.
 - **Render Blueprint** (`render.yaml`): free plan, health check `/healthz`, secrets entered in the dashboard only.
+- **Channel3 integrated (sponsor, Aaron 11:22):** the demo shop sells real Channel3 products; every decision looks up
+  the live market price (free endpoint, 2.5 s limit, 15 min cache) as a soft signal that can only raise a hold. Review
+  of the first snapshot: most products had 1 shop, so the picker now prefers well-known products sold by 3+ shops, and
+  fewer than 3 shops is labelled "N shops only" on screen. Recorded AI answers are tied to the exact prompt, so any
+  catalogue change means re-recording (5 calls); `refresh_demo.bat` does catalogue, recording and live check in order.
 - **Per-visitor demo sessions** (review U6): each judge's browser gets its own budget, payments and log, so judges
   never spend or see each other's demo.
 

@@ -290,7 +290,8 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                 "receipt_key": "ephemeral (demo)" if st.signer.ephemeral else "configured",
                 "audit_entries": a["checked"], "demo": demo_mode,
                 "market": "Channel3 (live market prices)" if st.market is not None else "off",
-                "product_data": st.demo.source}
+                "product_data": st.demo.source,
+                "recorded_ai_answers": sum(1 for _ in DEMO_ANSWERS.open(encoding="utf-8")) if DEMO_ANSWERS.exists() else 0}
 
     # ---------------------------------------------------------------- shop data (public)
     @app.get("/api/catalogue", tags=["shop"])

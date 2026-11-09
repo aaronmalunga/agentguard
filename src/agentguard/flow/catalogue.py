@@ -91,7 +91,9 @@ class Catalogue:
                                "median_cents": mp.reference_cents, "low_cents": mp.low_cents,
                                "high_cents": mp.high_cents, "offers": mp.offers, "domains": list(mp.domains),
                                "ms": mp.latency_ms, "cached": mp.from_cache, "live": True})
-                return mp.reference_cents, f"Channel3, median of {mp.offers} shop{'s' if mp.offers != 1 else ''}"
+                label = (f"Channel3, median of {mp.offers} shops" if mp.offers >= 3
+                         else f"Channel3, {mp.offers} shop{'s' if mp.offers != 1 else ''} only")
+                return mp.reference_cents, label
             market.append({"sku": p.sku, "title": p.title, "channel3_id": p.channel3_id, "live": False})
         return p.reference_price_cents, (p.reference_source if p.reference_price_cents else None)
 

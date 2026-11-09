@@ -90,3 +90,13 @@ def test_client_fails_safe_and_caches(monkeypatch):
     t[0] = 16 * 60
     assert ok.market_price("p1").from_cache is False
     assert Channel3(api_key="").market_price("p1") is None
+
+
+def test_thin_market_is_labelled(tmp_path, monkeypatch):
+    class Thin(FakeMarket):
+        def market_price(self, product_id, exclude_domains=()):
+            mp = super().market_price(product_id)
+            return MarketPrice(**{**mp.__dict__, "offers": 1})
+    c = app_with(tmp_path, monkeypatch, Thin())
+    p = c.post("/api/demo/run", json={"scenario": "inflated"}, headers=BUYER).json()["payment"]
+    assert p["status"] == "held" and p["facts"]["items"][0]["usual_price_source"] == "Channel3, 1 shop only"
