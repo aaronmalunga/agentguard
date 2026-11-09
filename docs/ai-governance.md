@@ -1,6 +1,6 @@
 # AI governance, guardrails and evaluation (model card)
 
-Status as of **8 Nov 2026**. Every number links to a committed run. Gaps are listed, not hidden.
+Status as of **8 Nov 2026** (section 6 updated 9 Nov). Every number links to a committed run. Gaps are listed, not hidden.
 
 ## 1. What the AI does, and what it may never do
 | | |
@@ -52,13 +52,12 @@ logged with a reason · test-informed changes disclosed and re-tested on a fresh
 (`docs/review-process.md`) · decisions recorded with who approved them (`docs/decision-log.md`, ADRs) · live
 integration log (`docs/ai-integration-log.md`) · AI and tool use disclosed in the README.
 
-## 6. Known gaps (owner: the project; planned before submission unless marked later)
-- **Hash-chained audit log** of every decision (required by our own rules; not built yet).
-- **Consistency test:** the same case 3 times, same answer? (pre-registered metric, not run yet).
-- **Mandate parser accuracy** on a labelled set (only spot-checked live).
-- **Explanation quality** judged by an LLM-as-judge validated against hand labels (later).
-- **Cart and price provenance (D3):** the guard should read items and prices from the merchant's catalogue, not the
-  agent's request. The evaluation supplies them; the live flow must enforce it.
-- **Page capture (D4):** page text must come from the proxy, not the agent.
+## 6. Known gaps (updated 9 Nov 2026)
+- **Consistency test** (the same case 3 times, same answer?): pre-registered, not run.
+- **Mandate parser accuracy** on a labelled set: only spot-checked live.
+- **Explanation quality / LLM-as-judge and the anomaly model:** designed, not built (`docs/evaluation-plan.md` s.8, 9 Nov).
+- **No LLM bake-off:** the model was chosen by constraint (ADR-0006 amendment, 9 Nov).
+- *Closed since 8 Nov:* hash-chained audit log (`flow/audit.py`), cart and price provenance (D3) and page capture (D4)
+  are enforced in the live flow (`docs/decision-log.md`, 8 Nov evening).
 - **One model family tested** (budget). Results apply to this model only.
 - **Synthetic data, one labeller.** Real traffic would start in shadow mode.

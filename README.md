@@ -213,6 +213,9 @@ with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
 - **Too many questions to the buyer.** On the held-out set 20% of good purchases were asked about, above our 15%
   target. With the AI unavailable that rises to 83%.
 - One server process; the rate limit and sessions live in memory.
+- **One AI model, chosen by constraint.** `gemini-3.5-flash-lite` is the free model we could use; the planned
+  three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)). An anomaly model and
+  AI grading of explanation quality were designed but not built ([evaluation plan](docs/evaluation-plan.md) s.8).
 
 ## Documentation
 

@@ -101,6 +101,21 @@ hand-labelled explanations is measured (Cohen's kappa) and reported.
 
 ## 8. Changes after freezing
 
+**9 Nov 2026: what was designed here but not built (docs honesty, review J2).** Stated plainly so no reader
+assumes a number exists for these:
+- **Config 4, anomaly model (IsolationForest): designed, not built.** No model was trained and no config-4 run exists.
+  Reasons: (1) the only data is synthetic, and a model trained on generated cases mostly learns the generator (noted
+  25 Oct), so a held-out score would say little; (2) config 3 already met every pre-registered mark on v3 (s.8 below),
+  so by the keep-a-layer rule config 4 would have to raise catch with almost no room left; (3) sprint time went to the
+  live flow, webhooks and receipts. Roadmap: train on real shadow-mode traffic, not synthetic cases.
+- **LLM-as-judge for explanation quality: designed, not built.** No hand-labelled set of 30 explanations exists, so no
+  agreement (kappa) was measured and no explanation-quality score is reported. Buyer-facing reasons are written by
+  AgentGuard from the rules and checks that fired (`guard/decision.py`), never by the agent.
+- **Other s.5 metrics not run:** consistency (3 repeats per case) and cost per 1,000 decisions (tokens are recorded per
+  run, e.g. v3: 41,090 in + 9,410 out; the free tier costs $0, and no paid price was applied). The LLM bake-off
+  (ADR-0006) was not run; see the ADR-0006 amendment of 9 Nov.
+- Nothing above changes any reported result; it only marks what was never measured.
+
 **8 Nov 2026: catalogue v3 result + regression checks** (v3 frozen at `608d01d`, run at that commit, clean tree;
 results `07d44c7`: `evidence/runs/20261108T140724Z_v3.json`, `…141716Z_dev.json`, `…142055Z_heldout.json`).
 117 cases (75 attacks, 42 benign). Model `gemini-3.5-flash-lite`; 110 fresh calls, 1 failure (504), schema-valid

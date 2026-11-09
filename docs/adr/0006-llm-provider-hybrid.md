@@ -1,6 +1,6 @@
 # ADR-0006: LLM provider — provider-agnostic, model chosen by bake-off, Bedrock on AWS deploy
 
-- **Status:** Accepted (model selection pending the Phase 2 bake-off)
+- **Status:** Accepted; amended 8 Nov and 9 Nov (bake-off not run, model chosen by constraint; see the end)
 - **Date:** 2026-10-14
 - **Deciders:** Aaron (decision), Claude (options and analysis)
 - **Related:** ADR-0002 (Render + AWS, AWS gated on 30 Oct), ADR-0005 (Strands agent, framework-free guard)
@@ -95,3 +95,21 @@ AI components may only **add** friction: approve → step-up → block. They nev
 - **Reported openly:** the 300 ms mark is met by the deterministic guard and **not** by the AI path; both numbers are
   published. This is a deviation from the pre-registered fallback, recorded here before any further held-out look.
 - **Safety unchanged:** AI timeout (15 s) or error → ask the buyer; AI can only escalate.
+
+## Amendment, 9 Nov 2026: the bake-off was not run (docs honesty, review J2)
+- **What happened:** the three-vendor bake-off above was **not run**. Prepaid Anthropic and OpenAI credits could not be
+  bought in time (T14 still open), and no other model was tested on the bake-off tasks. Bedrock moved after submission
+  (ADR-0008 amendment, 7 Nov).
+- **How the model was actually chosen: by constraint, not by measurement.** `gemini-3.5-flash-lite` is the only model on
+  the free route this project can use (`gemini-2.5-flash-lite` returns 404 for new users, amendment above), and decision
+  D14 (Aaron, 8 Nov) rules out a paid tier. No claim is made that it is the best or cheapest of the candidates.
+- **How it was then tested:** on the frozen sets, with every number in `docs/evaluation-plan.md` s.8 — catalogue v2
+  (27/28 caught, 0/54 false blocks), catalogue v3 (71/75 caught, 0 severe misses, 0/42 false blocks, schema-valid
+  99.1%) and held-out looks #2 and #3. The pre-registered schema-valid mark (>= 95%) is met on the model we use. The
+  bake-off's tool-calling metric (>= 90% correct tool calls) was **not measured**, because no LLM agent existed until
+  the MCP agent (ADR-0005 amendment).
+- **What changes in the claims:** README, Devpost and the video say "tested with `gemini-3.5-flash-lite`"; they never
+  say "selected by bake-off" or compare vendors. Provider portability stays a design property (model ID from config),
+  not a measured result.
+- **If keys arrive by Wed 11 Nov:** a small bake-off on the same frozen v3 set, same selection rule, recorded here
+  **before** it runs. Otherwise it is roadmap.

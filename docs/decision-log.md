@@ -3,6 +3,16 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 9 Nov 2026 (late) — Docs honesty (review J2)
+
+- **ADR-0006 amended:** the LLM bake-off was not run (no paid keys); `gemini-3.5-flash-lite` was chosen by constraint
+  (free route + D14), then tested on v2, v3 and held-out. Tool-call accuracy never measured. Small bake-off only if
+  keys arrive by Wed and it is pre-registered first.
+- **ADR-0005 amended:** the demo agent has been scripted; Strands arrives with the MCP adapter, or is labelled roadmap.
+- **Evaluation plan s.8 / AI governance s.6:** anomaly model (config 4) and LLM-as-judge marked "designed, not built"
+  with reasons; consistency and cost-per-1,000 marked not run; stale gaps (audit log, D3, D4) closed. README limitation
+  line added. No result changed.
+
 ## 9 Nov 2026
 
 - **UI polish from Aaron's review (17:20):** AG Grid icons were empty squares because we shipped the "no-font" Quartz
