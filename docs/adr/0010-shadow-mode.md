@@ -35,7 +35,7 @@ as hashed, so the public check (SHA-256 of the embedded mandate) is unchanged.
 ## Consequences
 - ➕ False-ask rate can be measured on real traffic without stopping a buyer; "would have" is in the tamper-evident log.
 - ➕ Shadow can never spend outside the buyer's limits.
-- ➖ **In shadow, a page-injection attack inside the limits succeeds** (the demo's poisoned page buys the $119 Nova
+- ➖ **In shadow, a page-injection attack inside the limits succeeds** (on the local synthetic demo the poisoned page buys the $119 Nova
   Lite). That is the point of shadow and why enforce is the default; the console labels every such payment
   "Shadow: would ask".
 - ➖ An AI outage in shadow is logged, not asked (enforce still fails safe to "ask the buyer").

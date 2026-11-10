@@ -260,7 +260,13 @@
     });
     if (f.shop) rowsH += "<dt>Shop</dt><dd>" + esc(f.shop) + "</dd>";
     if (f.total) rowsH += "<dt>Total</dt><dd class=\"num\">" + esc(f.total) + "</dd>";
-    if (f.budget_left) rowsH += "<dt>Budget left</dt><dd class=\"num\">" + esc(f.budget_left) + "</dd>";
+    if (f.budget_left) {   // facts hold the budget BEFORE this payment; once it is paid, show what is left after it
+      var paid = p.status === "captured";   // refunds give money back, so only a plain capture is subtracted
+      var cents = function (t) { return Math.round(parseFloat(String(t).replace(/[^0-9.\-]/g, "")) * 100); };
+      var left = paid && f.total ? cents(f.budget_left) - cents(f.total) : null;
+      rowsH += "<dt>" + (paid ? "Budget left" : "Budget left before this") + "</dt><dd class=\"num\">" +
+        esc(left !== null && !isNaN(left) ? "$" + (left / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : f.budget_left) + "</dd>";
+    }
     var why = (p.findings || []).filter(function (x) { return x.level !== "approve"; })[0];
     var h = '<span class="hint">AgentGuard, for Thandi</span><h3>' + esc(title) + "</h3>";
     var img = productImage(items[0] && items[0].title);
