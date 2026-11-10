@@ -3,6 +3,20 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 10 Nov 2026 — Per-agent keys (review M1)
+
+- **Options:** keep one shared agent token (agent ID is self-reported) · signed requests per agent (keypair, more
+  work for every client) · **revocable per-agent bearer keys (chosen)**: works with any MCP client today.
+- Buyer mints a key in "Your rules → Connect an agent" (`POST /api/agent-keys`); shown once, only its SHA-256 kept,
+  max 5 per session; revoke → 401 `agent_key_revoked`. A key acts inside its buyer's demo session, so an agent on a
+  laptop (no cookie) lands in that buyer's console. The payment records the key's agent ID and ignores the one in
+  the body; `agt_` IDs are reserved, so "verified" can't be claimed with the shared token. Mint/revoke are logged
+  in the hash chain. Session switch happens in middleware, because FastAPI runs sync auth checks in another thread
+  and a context change there would not reach the endpoint.
+- Tests 196 → 199; headless Chrome: mint in browser → pay with key from a cookie-less client → recorded as
+  `agt_…`, verified; 0 console errors. Fundamental: authentication tells you *who*; never take identity from the
+  payload.
+
 ## 10 Nov 2026 — Terms audit (rules, Gemini, Channel3) → sources S7–S9
 
 - Read in full: Devpost Official Rules, Gemini API Additional Terms (23 Mar 2026), Channel3 Publisher Terms (2 Nov

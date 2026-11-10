@@ -353,3 +353,69 @@ def test_mandate_budget_has_a_sanity_cap():
     assert c.post("/api/mandates", json={"mandate": m}, headers=BUYER).status_code == 422
     m.update(budget_total_cents=1_000_000, max_item_price_cents=15000)
     assert c.post("/api/mandates", json={"mandate": m}, headers=BUYER).status_code == 201
+
+
+# ------------------------------------------------------------------ per-agent keys (M1)
+def _demo_app():
+    from agentguard.web.app import DEMO_TOKENS
+    app = create_app(paypal_mode="fake", llm=FakeLLM(), clock=lambda: NOW, tokens=dict(DEMO_TOKENS), demo_mode=True,
+                     demo_source="synthetic", rate_per_min=0)
+    return app, {"Authorization": "Bearer " + DEMO_TOKENS["buyer"]}
+
+
+def _demo_cart():
+    return {"action": "authorize_purchase", "mandate_id": "thandi-earbuds", "mandate_version": 1,
+            "merchant_id": "soundmart", "agent_id": "claims-to-be-anyone", "lines": [{"sku": "EB-PULSE", "quantity": 1}]}
+
+
+def test_agent_key_acts_in_its_buyers_session_and_records_the_agent_agentguard_knows():
+    app, H = _demo_app()
+    a, b, laptop = TestClient(app), TestClient(app), TestClient(app)   # laptop = an MCP agent with no cookie
+    a.get("/api/demo/session"), b.get("/api/demo/session")
+    minted = a.post("/api/agent-keys", json={"name": "My shopping agent"}, headers=H).json()
+    assert minted["key"].startswith("agk_") and minted["shown_once"] and minted["agent_id"].startswith("agt_")
+    assert "key" not in a.get("/api/agent-keys", headers=H).json()[0]          # shown once, never listed again
+    ag = app.state.ag.agent_keys
+    rec = ag.lookup(minted["key"])
+    assert rec and rec.digest != minted["key"] and minted["key"] not in repr(rec)   # only the hash is kept
+    r = laptop.post("/api/payments", json=_demo_cart(),
+                    headers={"Authorization": "Bearer " + minted["key"], "Idempotency-Key": "lap-1"})
+    assert r.status_code == 200
+    p = r.json()
+    assert p["agent_id"] == minted["agent_id"] and p["agent_verified"]           # the claim in the body is ignored
+    assert [x["id"] for x in a.get("/api/payments", headers=H).json()] == [p["id"]]   # lands in A's session
+    assert b.get("/api/payments", headers=H).json() == []                             # B sees nothing
+    assert a.get("/api/audit/verify").json()["ok"]
+
+
+def test_agent_key_can_only_ask_to_pay_and_revoked_or_unknown_keys_are_refused():
+    app, H = _demo_app()
+    a, laptop = TestClient(app), TestClient(app)
+    a.get("/api/demo/session")
+    k = a.post("/api/agent-keys", json={"name": "agent"}, headers=H).json()
+    K = {"Authorization": "Bearer " + k["key"]}
+    p = laptop.post("/api/payments", json=_demo_cart(), headers={**K, "Idempotency-Key": "x1"}).json()
+    for method, path in (("get", "/api/payments"), ("post", f"/api/payments/{p['id']}/approve"),
+                         ("post", f"/api/payments/{p['id']}/reject"), ("get", "/api/agent-keys"),
+                         ("post", "/api/agent-keys"), ("get", "/api/audit")):
+        r = getattr(laptop, method)(path, headers=K, **({"json": {"name": "x"}} if method == "post" else {}))
+        assert r.status_code == 403, (method, path, r.status_code)
+    assert a.delete(f"/api/agent-keys/{k['agent_id']}", headers=H).json()["revoked"]
+    r = laptop.post("/api/payments", json=_demo_cart(), headers={**K, "Idempotency-Key": "x2"})
+    assert r.status_code == 401 and r.json()["error"]["code"] == "agent_key_revoked"
+    r = laptop.post("/api/payments", json=_demo_cart(),
+                    headers={"Authorization": "Bearer agk_not-a-real-key", "Idempotency-Key": "x3"})
+    assert r.status_code == 401 and r.json()["error"]["code"] == "unknown_agent_key"
+    log = a.get("/api/audit", headers=H).json()
+    kinds = [e["kind"] for e in (log if isinstance(log, list) else log.get("entries", []))]
+    assert "agent_key_minted" in kinds and "agent_key_revoked" in kinds and a.get("/api/audit/verify").json()["ok"]
+
+
+def test_verified_agent_ids_cannot_be_claimed_with_the_shared_token_and_keys_are_capped():
+    c, _ = client()
+    r = pay(c, cart(agent_id="agt_0123456789ab"))
+    assert r.status_code == 422 and r.json()["error"]["code"] == "reserved_agent_id"
+    assert pay(c, cart(), key="k2").json()["agent_verified"] is False
+    for i in range(5):
+        assert c.post("/api/agent-keys", json={"name": f"a{i}"}, headers=BUYER).status_code == 201
+    assert c.post("/api/agent-keys", json={"name": "a6"}, headers=BUYER).status_code == 409

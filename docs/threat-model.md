@@ -44,7 +44,7 @@ scheduled build step before submission · **Open** = known, not scheduled (roadm
 | # | STRIDE | Threat | Control | Test / evidence | Status |
 |---|---|---|---|---|---|
 | S1 | Spoofing | Agent poses as the buyer to approve its own payment | Separate agent and buyer tokens; agent token can only ask to pay | `test_buyer_cannot_pose_as_agent`, `test_no_token_is_401_and_agent_cannot_approve_or_read`; live 9 Nov: role checks 4/4 (403) | Covered |
-| S2 | Spoofing | One agent's token used by another agent; no way to tell agents apart | Per-agent, revocable keys; payments record the agent ID | — | **Planned** (step 4, M1) |
+| S2 | Spoofing | One agent's token used by another agent; no way to tell agents apart | Per-agent, revocable keys (only the SHA-256 kept, shown once, max 5 per session); payments record the agent AgentGuard knows, not the one claimed; `agt_` IDs can't be claimed with the shared demo token; minting and revoking go into the audit chain | `test_agent_key_acts_in_its_buyers_session_and_records_the_agent_agentguard_knows`, `test_agent_key_can_only_ask_to_pay_and_revoked_or_unknown_keys_are_refused`, `test_verified_agent_ids_cannot_be_claimed_with_the_shared_token_and_keys_are_capped` | Covered (10 Nov). The shared demo agent token still exists for the scripted demo; its payments show as unverified |
 | S3 | Spoofing | Forged PayPal webhook marks a payment as paid or refunded | PayPal verify-webhook-signature postback; 5 headers + `paypal.com` HTTPS cert URL checked first; unverified → 400, nothing recorded | `test_unverified_event_is_rejected_and_nothing_recorded`, `test_cert_url_must_be_https_paypal`; live 9 Nov: forged event → FAILURE → 400 | Covered |
 | S4 | Spoofing | Forged demo session cookie to read another visitor's session | Server-issued random session IDs; unknown cookie ignored | `test_forged_session_cookie_is_ignored`, `test_each_demo_visitor_gets_their_own_budget_and_log` | Covered |
 | T1 | Tampering | Agent sends its own price, title or payee | Agent sends SKU + quantity only; facts from catalogue and payee registry; a stated price that differs → ask first | `test_agent_cannot_send_prices_payee_or_page_text`, `test_price_comes_from_catalogue_and_agent_lie_asks_first`, `test_payee_account_comes_from_registry` | Covered |
@@ -103,7 +103,6 @@ cascading failures (fail-safe ask), ASI09 human-agent trust exploitation (LLM09)
 
 ## 8. Open items, ranked by exposure
 1. **M8 approval fatigue** (20% step-ups on held-out) — the main usability-security trade-off; reported in README.
-2. **S2 per-agent keys** — step 4, before submission.
 3. **M4 remainder:** events for a payment whose authorisation call timed out can't be matched (no PayPal ID stored) — roadmap.
 4. **T4 whole-chain rewrite** — write-once anchoring after submission.
 5. **M6 honour-period auto-void, M7 mandate re-check at approval** — after submission.

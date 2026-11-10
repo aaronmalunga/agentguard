@@ -48,6 +48,8 @@ from agentguard.mandate import Mandate
 from agentguard.money import fmt
 from agentguard.paypal import PayPalGateway, vaulted_card
 from agentguard.web import demo
+from agentguard.web.agent_keys import PREFIX as AGENT_KEY_PREFIX
+from agentguard.web.agent_keys import AgentKeys
 
 STATIC = Path(__file__).parent / "static"
 DEMO_ANSWERS = Path(__file__).parent / "demo_ai_answers.jsonl"
@@ -74,6 +76,11 @@ def _err(status: int, code: str, message: str):
 # ------------------------------------------------------------------------------------------------ request bodies
 class PaymentIn(AgentCart):
     page_id: str | None = Field(default=None, max_length=64)   # page AgentGuard captured; text never from agent
+
+
+class AgentKeyIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    name: str = Field(min_length=1, max_length=60)
 
 
 class DraftIn(BaseModel):
@@ -246,6 +253,7 @@ def view(p: dict) -> dict:
         out[k] = json.loads(raw) if raw else None
     out["amount"] = fmt(p["amount_cents"])
     out["paypal_called"] = bool(p.get("paypal_order_id"))
+    out["agent_verified"] = bool(p.get("agent_id", "") and str(p.get("agent_id")).startswith("agt_"))
     return out
 
 
@@ -317,6 +325,7 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     hook_limiter = RateLimiter(rate_per_min * 4) if rate_per_min > 0 else None
 
     page_csp = _page_csp()
+    keys = st.agent_keys = AgentKeys()
 
     @app.middleware("http")
     async def label_mode(request: Request, call_next):
@@ -331,6 +340,10 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         if resp is None:
             sid = request.cookies.get(SESSION_COOKIE, "")
             _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
+            token = (request.headers.get("authorization") or "").removeprefix("Bearer ").strip()
+            request.state.agent_key = keys.lookup(token) if token.startswith(AGENT_KEY_PREFIX) else None
+            if request.state.agent_key and not request.state.agent_key.revoked:
+                _current.set(request.state.agent_key.session)   # an agent key acts inside its buyer's session (M1)
             resp = await call_next(request)
         resp.headers["X-AgentGuard-PayPal"] = st.paypal_mode   # "fake" responses are simulated, never PayPal
         _security_headers(resp, request.url.path, page_csp)
@@ -341,9 +354,16 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         return JSONResponse({"error": {"code": "invalid_state", "message": str(exc)}}, status_code=409)
 
     def role(*allowed: str):
-        def check(authorization: str | None = Header(default=None)):
+        def check(request: Request, authorization: str | None = Header(default=None)):
             token = (authorization or "").removeprefix("Bearer ").strip()
             who = next((r for r, t in st.tokens.items() if secrets.compare_digest(token, t)), None)
+            if who is None and token.startswith(AGENT_KEY_PREFIX):
+                rec = getattr(request.state, "agent_key", None)
+                if rec is None:
+                    _err(401, "unknown_agent_key", "This agent key doesn't exist.")
+                if rec.revoked:
+                    _err(401, "agent_key_revoked", "This agent key was revoked by the buyer.")
+                who = "agent"
             if who is None:
                 _err(401, "unauthenticated", "Send 'Authorization: Bearer <token>'.")
             if who not in allowed:
@@ -415,8 +435,14 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
 
     # ---------------------------------------------------------------- payments
     @app.post("/api/payments", tags=["payments"], dependencies=[agent])
-    def submit(body: PaymentIn, idempotency_key: str | None = Header(default=None, max_length=128)):
-        """The agent asks to pay. Same Idempotency-Key ⇒ same answer, nothing happens twice."""
+    def submit(body: PaymentIn, request: Request, idempotency_key: str | None = Header(default=None, max_length=128)):
+        """The agent asks to pay. Same Idempotency-Key ⇒ same answer, nothing happens twice. With a per-agent key the
+        payment records the agent AgentGuard knows, not the agent_id the request claims (M1)."""
+        rec = getattr(request.state, "agent_key", None)
+        if rec is not None:
+            body = body.model_copy(update={"agent_id": rec.agent_id})
+        elif body.agent_id.startswith("agt_"):   # reserved for real keys, so "verified" can't be claimed
+            _err(422, "reserved_agent_id", "Agent IDs starting with 'agt_' come only from a per-agent key.")
         if not idempotency_key:
             _err(400, "idempotency_key_required", "Send an 'Idempotency-Key' header (one per purchase attempt).")
         pg = st.pages.get(body.page_id) if body.page_id else None
@@ -426,6 +452,27 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         p = st.svc.submit_cart(cart, request_key=idempotency_key, page_text=pg["text"] if pg else "",
                                page_source=f"{pg['id']} sha256:{pg['sha256'][:16]}" if pg else None)
         return view(p)
+
+    # ---------------------------------------------------------------- agent keys (M1)
+    @app.post("/api/agent-keys", tags=["agents"], dependencies=[buyer], status_code=201)
+    def mint_agent_key(body: AgentKeyIn):
+        """Connect an agent: a revocable key for this session. The key is shown once; only its hash is kept."""
+        try:
+            key, rec = keys.mint(_current.get(), body.name)
+        except ValueError as e:
+            _err(409, "too_many_agent_keys", str(e))
+        st.svc._audit("agent_key_minted", None, {"agent_id": rec.agent_id, "name": rec.name})
+        return {**rec.public(), "key": key, "shown_once": True}
+
+    @app.get("/api/agent-keys", tags=["agents"], dependencies=[buyer])
+    def list_agent_keys():
+        return [k.public() for k in keys.for_session(_current.get())]
+
+    @app.delete("/api/agent-keys/{agent_id}", tags=["agents"], dependencies=[buyer])
+    def revoke_agent_key(agent_id: str):
+        rec = keys.revoke(_current.get(), agent_id) or _err(404, "not_found", f"No agent '{agent_id}' here.")
+        st.svc._audit("agent_key_revoked", None, {"agent_id": rec.agent_id, "name": rec.name})
+        return rec.public()
 
     @app.get("/api/payments", tags=["payments"], dependencies=[buyer])
     def payments():

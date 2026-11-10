@@ -85,7 +85,7 @@
       if (a.dataset.route === r) a.setAttribute("aria-current", "page"); else a.removeAttribute("aria-current"); });
     if (r === "inbox") loadInbox();
     if (r === "console") loadConsole();
-    if (r === "setup") loadRules();
+    if (r === "setup") { loadRules(); loadKeys(); }
     if (r === "proof") loadProof();
   }
   window.addEventListener("hashchange", function () { route(); $("main").focus({ preventScroll: true }); });
@@ -410,6 +410,45 @@
         '<p class="hint">Fingerprint <span class="num">' + esc(m.fingerprint.slice(0, 20)) + "…</span> goes into every PayPal order, so the rules can’t be changed after the fact.</p>";
     }).catch(function (err) { $("activeRules").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
   }
+  /* ------------------------------------------------------------ agent keys (M1) */
+  function loadKeys() {
+    api("/api/agent-keys").then(function (ks) {
+      if (!ks.length) { $("keyList").innerHTML = ""; return; }
+      var h = '<p class="hint">Your agents</p><table class="facts well" style="width:100%">';
+      ks.forEach(function (k) {
+        h += "<tr><td>" + esc(k.name) + ' <span class="num hint">' + esc(k.agent_id) + "</span></td><td>" +
+          (k.revoked ? '<span class="status neutral">Revoked</span>' :
+            '<button class="btn" type="button" data-revoke="' + esc(k.agent_id) + '">Revoke</button>') + "</td></tr>";
+      });
+      $("keyList").innerHTML = h + "</table>";
+      Array.prototype.forEach.call($("keyList").querySelectorAll("[data-revoke]"), function (b) {
+        b.addEventListener("click", function () {
+          api("/api/agent-keys/" + encodeURIComponent(b.getAttribute("data-revoke")), { method: "DELETE" })
+            .then(function () { toast("Agent key revoked. Its next request is refused."); $("keyOut").innerHTML = ""; loadKeys(); })
+            .catch(function (err) { toast(err.message); });
+        });
+      });
+    }).catch(function () { $("keyList").innerHTML = ""; });
+  }
+  $("mintKey").addEventListener("click", function () {
+    var b = this; b.setAttribute("aria-busy", "true");
+    api("/api/agent-keys", { method: "POST", body: { name: $("agentName").value || "Agent" } }).then(function (k) {
+      var cfg = JSON.stringify({ mcpServers: { agentguard: { command: "uvx",
+        args: ["--from", "agentguard[agent] @ git+https://github.com/aaronmalunga/agentguard", "agentguard-mcp"],
+        env: { AGENTGUARD_URL: location.origin, AGENTGUARD_AGENT_KEY: k.key } } } }, null, 2);
+      $("keyOut").innerHTML = '<p class="hint"><strong>Copy this key now. It is shown once.</strong> AgentGuard keeps only its fingerprint.</p>' +
+        '<p class="num" style="word-break:break-all;font-size:15px">' + esc(k.key) + "</p>" +
+        '<p class="hint">MCP client config (Claude Desktop, Strands or any MCP agent):</p>' +
+        '<pre class="mono-block" style="white-space:pre-wrap;word-break:break-all">' + esc(cfg) + "</pre>" +
+        '<button class="btn" type="button" id="copyCfg">Copy config</button>';
+      $("copyCfg").addEventListener("click", function () {
+        (navigator.clipboard ? navigator.clipboard.writeText(cfg) : Promise.reject()).then(function () { toast("Config copied."); },
+          function () { toast("Select the text and copy it."); });
+      });
+      loadKeys();
+    }).catch(function (err) { toast(err.message); }).finally(function () { b.removeAttribute("aria-busy"); });
+  });
+
   $("draftBtn").addEventListener("click", function () {
     var b = this, out = $("draftOut"); b.setAttribute("aria-busy", "true");
     out.innerHTML = '<p class="hint">The AI is reading your words.</p>';

@@ -155,6 +155,16 @@
           <div id="activeRules"><span class="skeleton" style="display:block;width:70%"></span></div>
         </section>
       </div>
+      <section class="panel" aria-labelledby="agents-h">
+        <h2 class="panel-title" id="agents-h">Connect an agent</h2>
+        <p class="hint">Give an AI agent its own key. It can only ask to pay inside these rules: it can never approve, change the rules or see your log. Revoke it any time.</p>
+        <label for="agentName">Agent name
+          <input id="agentName" type="text" maxlength="60" value="My shopping agent">
+        </label>
+        <button class="btn primary" id="mintKey" type="button">Create an agent key</button>
+        <div id="keyOut" aria-live="polite"></div>
+        <div id="keyList"></div>
+      </section>
     </section>
 
     <!-- ===================== PROOF ===================== -->
