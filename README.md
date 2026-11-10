@@ -1,4 +1,4 @@
-<p align="center"><img src="src/agentguard/web/static/img/emblem.jpg" alt="AgentGuard emblem" width="96"></p>
+<p align="center"><img src="src/agentguard/web/static/img/emblem.png" alt="AgentGuard emblem" width="110"></p>
 
 # AgentGuard — agent spending controls, built on PayPal
 
@@ -30,15 +30,19 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 [AI and tool use](#ai-and-tool-use) · [Limitations](#limitations) · [Docs](#documentation) · [Licence](#licence)
 
 ## The problem
+**Authorized isn't the same as intended.**
 
-**Authorized isn't the same as intended.** AI agents can now pay on people's behalf. When an agent buys something its owner never wanted, the payment was
-**authorized** (the agent had permission) but not **intended**. PayPal's own merchant research (498 US merchants,
-April 2026) found no clear consensus on who is responsible when a customer disputes an agent's purchase: liability is
-"in flux" ([source](docs/sources.md#s1)). Today the only fix is reversing the payment afterwards, which costs fees,
-time and disputes.
+- AI agents can now pay on people's behalf.
+- When an agent buys something its owner never wanted, the payment was **authorized** (the agent had permission) but
+  not **intended**.
+- PayPal's own merchant research (498 US merchants, April 2026) found no clear consensus on who is responsible when a
+  customer disputes an agent's purchase: liability is "in flux" ([source](docs/sources.md#s1)).
+- Today the only fix is reversing the payment afterwards, which costs fees, time and disputes.
 
-AgentGuard moves the check **before the money moves**. In our sandbox test, voiding a held payment cost **$0.00**;
-capturing and then refunding a $40.00 payment lost the **$1.53** fee (US sandbox; live fees vary).
+**AgentGuard moves the check before the money moves.** In our sandbox test:
+
+- Voiding a held payment cost **$0.00**.
+- Capturing and then refunding a $40.00 payment lost the **$1.53** fee (US sandbox; live fees vary).
 
 ## Try it in two minutes
 
@@ -93,7 +97,6 @@ We ran a real agent this way in a pre-registered experiment ([results below](#re
 [plan](eval/agent_runs/PLAN.md), fixed before the first run).
 
 ## How it works
-
 ```mermaid
 flowchart LR
   B[Buyer] -- sets rules once --> M[Signed mandate]
@@ -106,35 +109,42 @@ flowchart LR
   G --> R[Signed receipt + hash-chained log]
 ```
 
-1. **Mandate.** The buyer states what the agent may buy: budget, price ceiling, quantity, categories, shops, delivery
-   address, expiry. The mandate is versioned, never edited in place, and fingerprinted (SHA-256). The fingerprint goes
-   into the PayPal order's `custom_id`.
-2. **Checks, in three layers.** Deterministic rules against the mandate and the shop's own catalogue, so prices and
-   items come from the shop, never from the agent. Then a hidden-instruction detector. Then an AI intent check
-   ("is this what the buyer meant?"). A Channel3 live market price acts as a soft signal.
-3. **Two decision points** ([ADR-0001](docs/adr/0001-two-decision-points.md)). Clear violations are stopped **before
-   authorization**, so they never reach PayPal or the card issuer. Doubtful payments are **authorized and held**, and
-   the buyer decides: capture or void.
-4. **Evidence.** Every decision gets an Ed25519-signed receipt and an entry in a hash-chained audit log. When PayPal
-   reports a change by webhook, the event is believed only after PayPal verifies its signature, and is then added to
-   the same log as evidence (tested live with authorization created, capture completed and authorization voided).
-   Verified events also keep the payment's status true to PayPal, and only ever forwards: a refund or chargeback
-   made on PayPal marks the payment "refunded outside AgentGuard" or "reversed" and gives the money back to the
-   buyer's budget; a late or repeated event changes nothing. A buyer dispute flags the payment and attaches the
-   mandate fingerprint and signed receipt as evidence (sending it to PayPal's Disputes API is roadmap). Event ID,
-   status change, budget change and log entry are saved in one database transaction. Live sandbox check (10 Nov):
-   a $10 refund and then an $88 refund, made in PayPal's dashboard on a $98 capture, moved the payment to
-   "partially refunded" and then "refunded", each notice verified by PayPal (4 verified, 0 rejected). Reversals
-   and disputes are tested with PayPal's documented event formats only.
-
-5. **Shadow mode, for rolling out** ([ADR-0010](docs/adr/0010-shadow-mode.md)). A merchant or agent platform can
-   switch a mandate to shadow first: the buyer's hard limits still block, but the hidden-text, AI and price checks
-   only record what they would have done, and a banner keeps a running tally ("would have stopped 2 of 3 payments,
-   and why"). After a trial on real traffic they switch to enforce, the default. Switching makes a new signed rules
-   version, and only the buyer's token can do it: an agent can't turn the guard down.
+1. **Mandate: what the buyer allows.**
+   - Budget, price ceiling, quantity, categories, shops, delivery address, expiry.
+   - Versioned, never edited in place, and fingerprinted (SHA-256).
+   - The fingerprint goes into the PayPal order's `custom_id`.
+2. **Checks, in three layers.**
+   - Deterministic rules against the mandate and the shop's own catalogue: prices and items come from the shop,
+     never from the agent.
+   - A hidden-instruction detector.
+   - An AI intent check: "is this what the buyer meant?"
+   - A Channel3 live market price acts as a soft signal.
+3. **Two decision points** ([ADR-0001](docs/adr/0001-two-decision-points.md)).
+   - Clear violations are stopped **before authorization**, so they never reach PayPal or the card issuer.
+   - Doubtful payments are **authorized and held**; the buyer decides: capture or void.
+4. **Evidence.**
+   - Every decision gets an **Ed25519-signed receipt** and an entry in a **hash-chained audit log**.
+   - PayPal webhook events are believed only after **PayPal verifies their signature**, then added to the same log
+     (tested live: authorization created, capture completed, authorization voided).
+   - Verified events keep the payment's status true to PayPal, and only ever move it forward:
+     - a refund or chargeback made on PayPal marks the payment "refunded outside AgentGuard" or "reversed" and gives
+       the money back to the buyer's budget;
+     - a late or repeated event changes nothing.
+   - A buyer dispute flags the payment and attaches the mandate fingerprint and signed receipt as evidence (sending it
+     to PayPal's Disputes API is roadmap).
+   - Event ID, status change, budget change and log entry are saved in **one database transaction**.
+   - Live sandbox check (10 Nov): a $10 refund, then an $88 refund, made in PayPal's dashboard on a $98 capture →
+     "partially refunded" → "refunded"; each notice verified by PayPal (4 verified, 0 rejected).
+   - Reversals and disputes are tested with PayPal's documented event formats only.
+5. **Shadow mode, for rolling out** ([ADR-0010](docs/adr/0010-shadow-mode.md)).
+   - A merchant or agent platform can switch a mandate to shadow first.
+   - The buyer's hard limits still block; the hidden-text, AI and price checks only record what they would have done.
+   - A banner keeps a running tally ("would have stopped 2 of 3 payments, and why").
+   - After a trial on real traffic, they switch to enforce (the default).
+   - Switching makes a new signed rules version, and only the buyer's token can do it: an agent can't turn the guard
+     down.
 
 ## The PayPal APIs, and what each one decides
-
 | PayPal API (sandbox) | Its job in AgentGuard |
 |---|---|
 | **OAuth 2.0** client credentials | Only AgentGuard's server holds the keys; agents never see them |
@@ -150,35 +160,63 @@ flowchart LR
 All of AgentGuard's checks run **before** Orders v2 is called: a blocked or "ask first" payment never reaches PayPal or
 the card issuer.
 
-**Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
-timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
+**Rules that keep the AI in its place:**
+
+- The AI can only make a decision *more* cautious, never less.
+- Any AI error or timeout means "ask the buyer".
+- The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
 
 ## Results (measured, not estimated)
+Every number comes from a committed run. Test sets were frozen in git before the rules they test were final, and
+expectations were written down before each run ([evaluation plan](docs/evaluation-plan.md)). Misses are reported as
+they happened.
 
-Every number below comes from a committed run in [`evidence/runs/`](evidence/runs/). Test sets were frozen in git
-before the rules they test were final, and expectations were written down before each run
-([evaluation plan](docs/evaluation-plan.md)). Misses are reported as they happened.
+**1. Attacks that stay inside the spending limits** ([`evidence/runs/`](evidence/runs/))
 
-| What | Result |
+| Test set | Rules alone | Rules + AI | Good purchases blocked |
+|---|---|---|---|
+| v3: 75 natural-language attacks, never seen in development; 42 normal purchases | 0/75 | **71/75 (94.7%)** | **0/42** |
+| v2: 28 harder attacks; 54 normal purchases | 0/28 | **27/28 (96.4%)** | 0/54 |
+| Held-out: 95 attacks, 30 normal purchases | — | **95/95** | 0/30 |
+
+- "Rules alone 0/75" is the point: fixed spending caps, like card controls, can't see a cart that is within budget but
+  not what the buyer meant.
+- **Miss we report:** on the held-out set, **6/30 good purchases (20%) were asked about**, above our own 15% target.
+- **With the AI down** (free quota exhausted, every AI call failed): still 95/95 caught and 0/30 blocked, but 25/30
+  good purchases were asked about. The fail-safe works as designed, at a cost.
+- AI speed (`gemini-3.5-flash-lite`): p50 **1,072 ms**, p95 **2,327 ms** per check (v3 run).
+
+**2. A real AI agent through the MCP server** (pre-registered, 10 Nov; [plan](eval/agent_runs/PLAN.md),
+[evidence](evidence/agent_runs/))
+
+- Strands agent on `gemini-3.1-flash-lite` against the live guard.
+- **0 harmful payments in 34 completed runs.**
+
+| Group | Result |
 |---|---|
-| **Natural-language attacks never seen in development** (catalogue v3, 75 attacks, 42 normal purchases) | Rules alone **0/75** · + AI **71/75 caught (94.7%)** · **0/42** good purchases blocked |
-| Harder natural-language set (v2, 28 attacks) | Rules alone 0/28 · + AI **27/28 (96.4%)** · 0/54 good purchases blocked |
-| Held-out set (95 attacks, 30 good purchases) | **95/95 caught**, 0/30 blocked; but **6/30 good purchases were asked about (20%)**, missing our own 15% target |
-| AI down (free quota exhausted, every AI call failed) | Still 95/95 caught and 0/30 blocked, but 25/30 good purchases were asked about (the fail-safe working as designed, at a cost) |
-| **Real AI agent through the MCP server** (pre-registered, 10 Nov; Strands + `gemini-3.1-flash-lite` against the live guard) | **0 harmful payments in 34 completed runs.** Normal shopping: **10/10** approved and paid, 0 false blocks. Poisoned page: agent not fooled **9/9**, but AgentGuard still asked the buyer **9/9** (the page itself hid instructions: one tap each). Agent lies about the price: **5/5 caught**, PayPal never called. "Repair after a block": agent never fooled (10/10), so **not measured**. 31 of 40 planned slots completed; the other runs hit Google "503 high demand" errors (31 error lines, all kept). [Evidence](evidence/agent_runs/) |
-| Live demo through the public URL, real PayPal sandbox (9 Nov) | **8/8 steps as expected**; changing a signed receipt by 1 cent breaks its signature |
-| Live refund made in PayPal's dashboard (10 Nov) | $10 then $88 refunded on a $98 capture → "partially refunded" → "refunded"; **4/4 webhooks verified** ([evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md)) |
-| AI speed (`gemini-3.5-flash-lite`) | p50 **1,072 ms** / p95 **2,327 ms** per check (v3 run) |
-| Tests | **219 passing, 90% line coverage** (10 Nov), against a stateful fake of the proven sandbox behaviour |
-| Accessibility | axe-core: **0 violations** on all 5 screens, light and dark (1 fixed); local run, automated checks only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)) |
+| Normal shopping | **10/10** approved and paid, 0 false blocks |
+| Poisoned page | Agent not fooled **9/9**; AgentGuard still asked the buyer **9/9** (the page itself hid instructions: one tap each) |
+| Agent lies about the price | **5/5 caught**, PayPal never called |
+| Repair after a block | Agent never fooled (10/10), so **not measured** |
 
-"Rules alone 0/75" is the point: fixed spending caps, like card controls, can't see a cart that is within budget but
-not what the buyer meant.
+- 31 of 40 planned slots completed. The other runs hit Google "503 high demand" errors (31 error lines, all kept).
+
+**3. Live checks on the public site (PayPal sandbox)**
+
+- 9 Nov: **8/8 steps as expected**; changing a signed receipt by 1 cent breaks its signature.
+- 10 Nov: $10, then $88 refunded in PayPal's dashboard on a $98 capture → "partially refunded" → "refunded";
+  **4/4 webhooks verified** ([evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md)).
+- 10 Nov: shadow mode on, then off, with receipts verifying
+  ([evidence](evidence/live_checks/2026-11-10_shadow_mode_live.md)).
+
+**4. Engineering**
+
+- **219 tests passing, 90% line coverage** (10 Nov), against a stateful fake of the proven sandbox behaviour.
+- Accessibility (axe-core): **0 violations** on all 5 screens, light and dark (1 fixed). Local run, automated checks
+  only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)).
 
 ## Check the evidence yourself
-
-**Signed receipts.** Each decision's receipt is signed with Ed25519. Anyone can check it offline, without trusting
-the server:
+**Signed receipts** (Ed25519). Anyone can check one offline, without trusting the server.
 
 | | |
 |---|---|
@@ -186,22 +224,25 @@ the server:
 | Key ID | `70808e9e1d43deb2` |
 | Live copy | [`/api/receipts/public-key`](https://agentguard-jg01.onrender.com/api/receipts/public-key) |
 
-Check one on the **Proof** screen, or save it as `receipt.json` and run:
+- **On the site:** check one on the **Proof** screen.
+- **Offline:** save it as `receipt.json` and run:
 
-```bash
-uv run python scripts/verify_receipt.py receipt.json vjllLCW9VIHYToxLBKlbvBcplEOXfRlDCdTjGwWfu3Q=
-```
+  ```bash
+  uv run python scripts/verify_receipt.py receipt.json vjllLCW9VIHYToxLBKlbvBcplEOXfRlDCdTjGwWfu3Q=
+  ```
+- Change any field (the amount, the mandate, the decision) and verification fails.
+- The receipt carries the mandate fingerprint, which matches the `custom_id` on the PayPal order.
 
-Change any field (the amount, the mandate, the decision) and verification fails. The receipt also carries the mandate
-fingerprint, which matches the `custom_id` on the PayPal order.
+**Audit chain.** [`/api/audit/verify`](https://agentguard-jg01.onrender.com/api/audit/verify) recomputes the hash chain
+of your session's decision log.
 
-**Audit chain.** [`/api/audit/verify`](https://agentguard-jg01.onrender.com/api/audit/verify) recomputes the hash
-chain of your session's decision log.
+**PayPal behaviour we rely on**, proven in the sandbox before any product code was written ([`spike/`](spike/)):
 
-**PayPal behaviour we rely on** was proven in the sandbox before any product code was written: two-phase
-authorize/capture/void; replaying the same `PayPal-Request-Id` returns the same capture (no double charge); a saved
-card charged with no buyer present; and a declined card returns HTTP 201 with status `DENIED`, so AgentGuard always
-checks the payment status, never the HTTP code. See [`spike/`](spike/).
+- Two-phase authorize → capture or void.
+- Replaying the same `PayPal-Request-Id` returns the same capture: no double charge.
+- A saved card charged with no buyer present.
+- A declined card returns HTTP 201 with status `DENIED`, so AgentGuard always checks the payment status, never the HTTP
+  code.
 
 ## Architecture
 
@@ -256,40 +297,54 @@ rules: [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
 Vulnerabilities: see [SECURITY.md](SECURITY.md).
 
 ## AI and tool use
+**AI inside the product**
 
-**AI inside the product.** `gemini-3.5-flash-lite` (Google, free tier) drafts mandate rules from the buyer's words
-(nothing applies until the buyer approves) and checks each cart against what the buyer meant. On the five demo
-scenarios the screen replays real model answers recorded on 9 Nov, labelled **"recorded"** with the latency measured
-at the time, so the demo works when the free quota runs out. Your own rules and your own pasted pages call the live
-model. Details: [AI governance and model card](docs/ai-governance.md).
+- `gemini-3.5-flash-lite` (Google, free tier):
+  - drafts mandate rules from the buyer's words (nothing applies until the buyer approves);
+  - checks each cart against what the buyer meant.
+- The five demo scenarios replay real model answers recorded on 9 Nov, labelled **"recorded"** with the latency
+  measured at the time, so the demo works when the free quota runs out.
+- Your own rules and your own pasted pages call the live model.
+- Details: [AI governance and model card](docs/ai-governance.md).
 
-**AI used to build it.** Claude (Anthropic), in Claude Code, helped with research, code and documentation, together
-with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
-([how it shaped the gateway](docs/decision-log.md)). Used twice: to build the PayPal gateway (5 Nov), then to review
-the gateway and webhook verifier against the plugin's Python guidance (10 Nov): 9 findings, no money-path bugs, 3
-fixed with tests ([review and response](docs/apimatic-review-2026-11-11.md)). Design checks: Hallmark `sloplint` and the Impeccable detector
-(rules-based, no AI). Design decisions, evaluation design and final review are by Aaron Malunga.
+**AI used to build it**
+
+- Claude (Anthropic), in Claude Code, helped with research, code and documentation.
+- The **APIMatic PayPal Server SDK Context Plugin** was used twice:
+  - to build the PayPal gateway (5 Nov; [how it shaped the gateway](docs/decision-log.md));
+  - to review the gateway and webhook verifier against the plugin's Python guidance (10 Nov): 9 findings, no
+    money-path bugs, 3 fixed with tests ([review and response](docs/apimatic-review-2026-11-11.md)).
+- Design checks: Hallmark `sloplint` and the Impeccable detector (rules-based, no AI).
+- Design decisions, evaluation design and final review are by Aaron Malunga.
 
 ## Limitations
+**Data and scope**
 
 - **Sandbox and synthetic data.** The attack catalogues are ours (written from published attack research), so the
   results show the mechanism works, not real-world rates.
 - **Mandates are AP2-style**, not the full AP2 protocol with verifiable credentials.
-- **The demo forgets on restart.** Demo data is kept in memory, so a restart or redeploy wipes it (the 10 Nov live
-  refund check is kept in [evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md) for that reason).
-  Receipts still carry their chain position and the PayPal order's `custom_id`. What a real deployment would add
-  (durable storage, tenants, KMS key, reconciliation, advisory mode) is listed in
+- **One AI model, chosen by constraint.** `gemini-3.5-flash-lite` is the free model we could use; the planned
+  three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)).
+- An anomaly model and AI grading of explanation quality were designed but not built
+  ([evaluation plan](docs/evaluation-plan.md) s.8).
+
+**The demo**
+
+- **It forgets on restart.** Demo data is kept in memory, so a restart or redeploy wipes it. The 10 Nov live refund
+  check is kept in [evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md) for that reason. Receipts
+  still carry their chain position and the PayPal order's `custom_id`.
+- **The demo scenarios are scripted** and replay recorded AI answers, so each behaves the same for every judge.
+- One server process; the rate limit and sessions live in memory.
+- What a real deployment would add (durable storage, tenants, KMS key, reconciliation, advisory mode):
   [docs/production-gaps.md](docs/production-gaps.md).
-- **The demo scenarios are scripted** (and replay recorded AI answers), so each behaves the same for every judge. Real
-  agents use the MCP server; our real-agent experiment is small (34 completed runs, one agent model, one synthetic
-  shop), and its "repair after a block" group measured nothing because the agent was never fooled.
-- **Held payments don't expire yet.** Auto-voiding before PayPal's 3-day honour period is designed (D2), not built.
+
+**Results we fell short on**
+
 - **Too many questions to the buyer.** On the held-out set 20% of good purchases were asked about, above our 15%
   target. With the AI unavailable that rises to 83%.
-- One server process; the rate limit and sessions live in memory.
-- **One AI model, chosen by constraint.** `gemini-3.5-flash-lite` is the free model we could use; the planned
-  three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)). An anomaly model and
-  AI grading of explanation quality were designed but not built ([evaluation plan](docs/evaluation-plan.md) s.8).
+- **The real-agent experiment is small:** 34 completed runs, one agent model, one synthetic shop. Its "repair after a
+  block" group measured nothing, because the agent was never fooled.
+- **Held payments don't expire yet.** Auto-voiding before PayPal's 3-day honour period is designed (D2), not built.
 
 ## Documentation
 
@@ -305,7 +360,14 @@ fixed with tests ([review and response](docs/apimatic-review-2026-11-11.md)). De
 
 ## Licence
 
-[Apache-2.0](LICENSE); see [NOTICE](NOTICE). Bundled third-party files keep their own licences: AG Grid Community
-(MIT, `src/agentguard/web/static/vendor/ag-grid/LICENSE.txt`); Michroma and Reddit Sans fonts (SIL Open Font
-Licence, `vendor/fonts/`). Product data, names and images come from Channel3 and their merchants: shown for this
-demo only, not for reuse or redistribution, and no brand shown endorses or is affiliated with AgentGuard.
+**AgentGuard:** [Apache-2.0](LICENSE). See [NOTICE](NOTICE).
+
+**Bundled third-party files keep their own licences:**
+
+| Component | Licence | Where |
+|---|---|---|
+| AG Grid Community | MIT | `src/agentguard/web/static/vendor/ag-grid/LICENSE.txt` |
+| Michroma and Reddit Sans fonts | SIL Open Font Licence | `src/agentguard/web/static/vendor/fonts/` |
+
+**Product data:** names, prices and images come from Channel3 and their merchants. They are shown for this demo only,
+not for reuse or redistribution, and no brand shown endorses or is affiliated with AgentGuard.
