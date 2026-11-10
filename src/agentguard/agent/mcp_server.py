@@ -1,13 +1,16 @@
 """AgentGuard as an MCP server: give any MCP agent shopping tools that cannot move money on their own.
 
-Shaped like PayPal's agent toolkit (`create_order`, `get_order`), but every order goes through AgentGuard's checks
-first, with AgentGuard creating an AUTHORIZE order itself (the toolkit's own `create_order` captures at once, D4).
+Uses the same order-tool names as PayPal's agent toolkit (`create_order`, `get_order_details`; toolkit commit a3aa963),
+so an agent written for the toolkit finds familiar tools, but the arguments are stricter (SKU + quantity only; prices
+come from the catalogue) and every order goes through AgentGuard's checks first. AgentGuard creates an AUTHORIZE order
+itself; the toolkit's own `create_order` captures on approval (D4). There is no `pay_order`: capture happens only after
+AgentGuard's checks pass or the buyer approves a hold. Not a drop-in replacement.
 
 Exactly four tools, read-only except one:
 - `list_products`  : the shop's catalogue (public)
 - `read_shop_page` : a page AgentGuard captured (its text is untrusted; AgentGuard checks it too)
 - `create_order`   : ask to pay. Returns AgentGuard's decision and, when refused, plain reasons with what would pass
-- `get_order`      : the status of this agent's own order
+- `get_order_details` : the status of this agent's own order
 There is deliberately no approve, reject, refund, capture or rules tool: those belong to the buyer.
 
 The agent key lives here, in the server's environment (`AGENTGUARD_AGENT_KEY`), never in the model's context and
@@ -21,6 +24,7 @@ import os
 
 import httpx
 from mcp.server.mcpserver import MCPServer
+from pydantic import BaseModel, Field
 
 INSTRUCTIONS = (
     "You shop for a buyer through AgentGuard, which checks every payment against what the buyer asked for before "
@@ -28,6 +32,12 @@ INSTRUCTIONS = (
     "If create_order is refused or held, read each finding's 'reason' and 'would_pass_if', fix your request to match "
     "what the buyer asked, and try again; if it can't be fixed, stop and tell the buyer why."
 )
+
+
+class OrderItem(BaseModel):
+    """One line the agent wants. Declared fields (no free-form object), so every model's function calling accepts it."""
+    sku: str = Field(description="Product SKU from list_products, e.g. 'C3-NORMAL'")
+    quantity: int = Field(default=1, ge=1, le=100)
 
 
 def _idempotency_key(mandate_id: str, items: list[dict], page_id: str | None, stated_total: str | None) -> str:
@@ -72,9 +82,9 @@ def make_server(base_url: str | None = None, agent_key: str | None = None,
         "Ask to pay for items. AgentGuard decides: approved (paid), held/asked (the buyer must confirm) or blocked. "
         "items: [{'sku': str, 'quantity': int}]. page_id: the page you shopped from. stated_total: the total you "
         "believe it costs, as a string, if you have one."))
-    def create_order(mandate_id: str, items: list[dict], merchant_id: str = "soundmart", page_id: str | None = None,
+    def create_order(mandate_id: str, items: list[OrderItem], merchant_id: str = "soundmart", page_id: str | None = None,
                      stated_total: str | None = None, note: str | None = None) -> dict:
-        lines = [{"sku": str(i.get("sku", "")), "quantity": int(i.get("quantity", 1))} for i in items][:20]
+        lines = [{"sku": i.sku, "quantity": i.quantity} for i in items][:20]
         if stated_total and lines:
             try:
                 lines[0]["claimed_price"] = float(str(stated_total).replace("$", "")) / max(1, lines[0]["quantity"])
@@ -92,8 +102,8 @@ def make_server(base_url: str | None = None, agent_key: str | None = None,
             return p
         return _call("GET", f"/api/agent/payments/{p['id']}", headers=auth)
 
-    @srv.tool(description="Check the status of one of your own orders by payment_id.")
-    def get_order(payment_id: str) -> dict:
+    @srv.tool(description="Get the details and status of one of your own orders by payment_id.")
+    def get_order_details(payment_id: str) -> dict:
         return _call("GET", f"/api/agent/payments/{payment_id}", headers=auth)
 
     return srv

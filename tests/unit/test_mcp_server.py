@@ -31,8 +31,12 @@ def _call(srv, name, args):
 
 def test_exactly_four_tools_and_none_can_approve_or_move_money():
     _, _, _, srv = _setup()
-    names = sorted(t.name for t in asyncio.run(srv.list_tools()))
-    assert names == ["create_order", "get_order", "list_products", "read_shop_page"]
+    tools = {t.name: t for t in asyncio.run(srv.list_tools())}
+    assert sorted(tools) == ["create_order", "get_order_details", "list_products", "read_shop_page"]
+    items = tools["create_order"].input_schema["properties"]["items"]
+    ref = items["items"].get("$ref", "").split("/")[-1]
+    line = tools["create_order"].input_schema.get("$defs", {}).get(ref, items["items"])
+    assert set(line["properties"]) == {"sku", "quantity"}   # typed: no free-form object for strict function calling
 
 
 def test_order_goes_through_the_guard_and_lands_in_the_buyers_console():
@@ -58,8 +62,8 @@ def test_same_request_twice_is_one_payment_and_other_agents_payments_are_hidden(
     assert a["payment_id"] == b["payment_id"] and len(buyer.get("/api/payments", headers=H).json()) == 1
     other = make_server("http://testserver", buyer.post("/api/agent-keys", json={"name": "b"}, headers=H).json()["key"],
                         http=TestClient(app))
-    assert _call(other, "get_order", {"payment_id": a["payment_id"]})["error"] == "not_found"
-    assert _call(srv, "get_order", {"payment_id": a["payment_id"]})["status"] == "captured"
+    assert _call(other, "get_order_details", {"payment_id": a["payment_id"]})["error"] == "not_found"
+    assert _call(srv, "get_order_details", {"payment_id": a["payment_id"]})["status"] == "captured"
 
 
 def test_lying_about_the_price_is_caught_and_a_key_is_required():

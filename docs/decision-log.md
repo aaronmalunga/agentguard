@@ -3,6 +3,16 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 10 Nov 2026 — Pressure test of the MCP adapter against PayPal's toolkit (before any agent run)
+
+- Checked against `github.com/paypal/agent-toolkit` (commit `a3aa963`, 1 Sep 2026): its order tools are
+  `create_order`, `pay_order`, `get_order_details`. Ours were `create_order`, `get_order` → renamed
+  `get_order_details`. No `pay_order` on purpose (capture only after AgentGuard's checks or the buyer's approval).
+  Claim wording fixed: **same order-tool names, stricter arguments, not a drop-in replacement.**
+- `items` was an untyped object list; strict function calling (Gemini) can reject objects without declared
+  fields → now a typed `OrderItem {sku, quantity}`; a test pins the schema. Strands sends it via Gemini's
+  `parameters_json_schema`. Plan and outcome rules unchanged (PLAN.md hash unchanged; no run had happened).
+
 ## 10 Nov 2026 — MCP adapter + Strands agent with a repair loop (step 6; Meta-winners "agent loop" test)
 
 - **MCP server** `agentguard-mcp` (mcp 2.3, MIT): 4 tools shaped like PayPal's agent toolkit (`list_products`,
