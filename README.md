@@ -239,4 +239,5 @@ with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
 
 [Apache-2.0](LICENSE); see [NOTICE](NOTICE). Bundled third-party files keep their own licences: AG Grid Community
 (MIT, `src/agentguard/web/static/vendor/ag-grid/LICENSE.txt`); Michroma and Reddit Sans fonts (SIL Open Font
-Licence, `vendor/fonts/`). Product data from Channel3.
+Licence, `vendor/fonts/`). Product data, names and images come from Channel3 and their merchants: shown for this
+demo only, not for reuse or redistribution, and no brand shown endorses or is affiliated with AgentGuard.

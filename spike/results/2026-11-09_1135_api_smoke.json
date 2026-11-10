@@ -45,7 +45,6 @@
             "dell.com",
             "focuscamera.com"
           ],
-          "ms": 1379,
           "cached": false,
           "live": true
         }
@@ -89,7 +88,6 @@
             "bhphotovideo.com",
             "cdw.com"
           ],
-          "ms": 483,
           "cached": false,
           "live": true
         }
@@ -128,7 +126,6 @@
             "jbl.com",
             "macys.com"
           ],
-          "ms": 367,
           "cached": false,
           "live": true
         }
@@ -167,7 +164,6 @@
             "bhphotovideo.com",
             "musicarts.com"
           ],
-          "ms": 348,
           "cached": false,
           "live": true
         }
@@ -208,7 +204,6 @@
             "dell.com",
             "focuscamera.com"
           ],
-          "ms": 1379,
           "cached": true,
           "live": true
         }
@@ -246,5 +241,6 @@
         "head": "0ee91f828c8be5fd8b86cb664c421f1f217f6b2d6d0e8e1b92d20f2ae606a458"
       }
     }
-  ]
+  ],
+  "_redacted": "10 Nov 2026: per-call Channel3 timings removed (Channel3 Publisher Terms s7: no published benchmarks of the service without consent). Nothing else changed."
 }

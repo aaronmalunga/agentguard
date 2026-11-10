@@ -3,6 +3,16 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 10 Nov 2026 — Terms audit (rules, Gemini, Channel3) → sources S7–S9
+
+- Read in full: Devpost Official Rules, Gemini API Additional Terms (23 Mar 2026), Channel3 Publisher Terms (2 Nov
+  2026). Findings and what we do about each: `docs/sources.md` S7–S9.
+- **Channel3:** per-call Channel3 timings removed from the API response, the decision log and three committed
+  smoke files (marked `_redacted`), because their terms forbid publishing benchmarks of the service without
+  consent. Reuse notice added to README and the shop page. Our own step times in the decision trace stay.
+- **Gemini:** free tier may not serve EU/UK/Swiss users. Options: paid project ($5 prepay, Aaron checking), or
+  recorded answers only on the hosted demo. Decision pending; until then nothing changes on the live site.
+
 ## 9 Nov 2026 (late) — Webhooks drive payment state (review W4/W5) → ADR-0009
 
 - **Forward-only state machine** (`flow/paypal_events.py`): verified PayPal events now move status (held/unknown →
@@ -83,7 +93,7 @@ Every significant decision, pivot and correction, newest first. Real architectur
   the live check's last scenario was blocked as over budget (correct behaviour, wrong demo). Recorded answers are
   re-recorded because the buyer's wording is part of the AI prompt. Live check before the change: 7/8, with the 8th the
   budget rule working (`spike/results/2026-11-09_1135_api_smoke.json`); Channel3 market prices live on 5/5 decisions,
-  3–6 shops each, 348–1,379 ms.
+  3–6 shops each (per-call timings removed 10 Nov: Channel3 terms forbid publishing benchmarks of their service).
 - **Per-visitor demo sessions** (review U6): each judge's browser gets its own budget, payments and log, so judges
   never spend or see each other's demo.
 

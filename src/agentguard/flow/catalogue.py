@@ -90,7 +90,9 @@ class Catalogue:
                 market.append({"sku": p.sku, "title": p.title, "channel3_id": p.channel3_id,
                                "median_cents": mp.reference_cents, "low_cents": mp.low_cents,
                                "high_cents": mp.high_cents, "offers": mp.offers, "domains": list(mp.domains),
-                               "ms": mp.latency_ms, "cached": mp.from_cache, "live": True})
+                               "cached": mp.from_cache, "live": True})
+                # no per-call Channel3 timing in the API: their Publisher Terms s7 forbid publishing benchmarks of the
+                # service without consent (sources.md S9). Our own step time is in the decision trace.
                 label = (f"Channel3, median of {mp.offers} shops" if mp.offers >= 3
                          else f"Channel3, {mp.offers} shop{'s' if mp.offers != 1 else ''} only")
                 return mp.reference_cents, label

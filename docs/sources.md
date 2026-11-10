@@ -41,6 +41,39 @@ Our own conclusions are labelled **inference**. Last checked: 14 Oct 2026.
 - **Date:** 26 Apr 2024 · **Link:** https://www.paypal.com/us/brc/article/seller-protection-agentic-commerce
 - **We use:** chargebacks initiated by scammers are costly and documentation-heavy for small businesses.
 
+## S7 — Devpost: PayPal AI Hackathon Official Rules
+- **Read:** 10 Nov 2026, https://paypalaihackathon.devpost.com/rules
+- **What binds us:** third-party APIs and data must be used under their own terms (s4 "Third Party Integrations");
+  video on YouTube, publicly visible, under 3 minutes, no third-party trademarks or copyrighted music without
+  permission; hosted demo free and unrestricted until the Judging Period ends (15 Dec 2026, 08:00 PT); **no
+  changes to the submission after the deadline** (s5), except removals Devpost permits for infringing or personal
+  material; ambiguous terms need a written request for clarification (s11).
+- **Devpost answers (Discord, 9–10 Nov, USER-REPORTED, screenshots kept by Aaron):** product names and photos
+  returned by a sponsor's API may appear in the video as they appear in the app, if that use follows the sponsor's
+  terms (keep the focus on the app, no logo close-ups, no implied endorsement); repo and hosted demo stay frozen at
+  the deadline, further work only on a separate branch.
+
+## S8 — Google: Gemini API Additional Terms of Service
+- **Read:** 10 Nov 2026 (effective 23 Mar 2026), https://ai.google.dev/gemini-api/terms
+- **What binds us:** "You may use only Paid Services when making API Clients available to users in the European
+  Economic Area, Switzerland, or the United Kingdom." Unpaid use may be reviewed by people and used to improve
+  Google's products, so only synthetic data is ever sent (already the rule). The $300 Google Cloud trial credit
+  does not cover the Gemini API (Google Cloud free-trial docs, read 10 Nov).
+- **Consequence:** the public demo either runs on a paid Gemini project or does not call Gemini live for visitors;
+  decision recorded in `docs/decision-log.md` (10 Nov).
+
+## S9 — Channel3: Publisher Terms and caching guide
+- **Read:** 10 Nov 2026 (Publisher Terms effective 2 Nov 2026), https://trychannel3.com/terms/publishers ;
+  https://docs.trychannel3.com/guides/caching.md
+- **What binds us:** showing Channel3 output to users of our app is allowed (s4–s5); we must not cache, store or
+  redistribute a *significant portion* of the catalogue, train models on it, give anyone our key, or **publish
+  benchmark or evaluation results of the service without written consent** (s7); users must be bound to terms
+  protecting Channel3's data (s5). Caching guide: cache product IDs, refresh prices and details at display time.
+- **What we do:** 5 products stored (IDs + titles + image links + our demo prices); market price fetched live per
+  decision; no Channel3 timings published (removed from the API, docs and smoke files on 10 Nov); README and app
+  carry a "demo only, not for reuse" notice; Channel3 data never used for training or the attack catalogues.
+  **Open:** written confirmation from Channel3 that the 5-product snapshot is acceptable (asked in Discord).
+
 ## Technical documentation
 - PayPal sandbox card testing & rejection triggers — https://developer.paypal.com/tools/sandbox/card-testing/
 - PayPal Orders v2 — https://developer.paypal.com/docs/api/orders/v2/
