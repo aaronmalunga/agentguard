@@ -304,3 +304,9 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Result:** each `PAYMENT.CAPTURE.REFUNDED` was verified by PayPal and moved the status captured → partially_refunded → refunded; the budget got $98 back; webhook counts 4 verified / 0 duplicate / 0 rejected / 0 unmatched; audit chain verifies (6 entries).
 - **Still open:** an earlier test purchase (16:29 SA) was missing 11 minutes later. Cause not established (a session reset during the test steps vs a server restart). Not a refund issue; watch it during the video recording.
 - **Updated:** README limits line and threat-model R2 no longer say "pending".
+
+## 10 Nov 2026 (evening): freeze after submission; v2 only after winners are announced (Aaron)
+- **Decision:** everything submitted on 12 Nov (repo, README, video, hosted demo) stays frozen until the winners are announced (~15 Dec, end of judging). No work on AgentGuard until then; Aaron studies for CLF-C02 (30 Nov). Same path as LedgerLens after the Meta hackathon.
+- **Options considered:** (a) keep improving `main` after submission; (b) work on a `v2` branch during judging; (c) full freeze until results.
+- **Trade-offs:** (c) loses ~5 weeks of build time, but protects the exam, keeps the judged version exactly as submitted (Devpost rules s.5) and keeps the hosted demo stable for judges.
+- **After results:** tag `v1.0-hackathon`, then v2 (AWS + Bedrock with IaC, provider bake-off, OpenTelemetry, contract tests, Disputes API, evaluation notebook, case study) and a separate portfolio video. The hackathon video is never replaced.
