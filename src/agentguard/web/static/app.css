@@ -200,7 +200,7 @@ details summary { cursor: pointer; min-height: 44px; display: flex; align-items:
 .product-tile { display: flex; align-items: center; justify-content: center; height: 150px; padding: 14px; border-radius: var(--r-2);
   background: radial-gradient(120% 90% at 50% 35%, var(--tile-hi), var(--tile-lo)); box-shadow: inset 0 0 0 1px var(--rule-2); }
 .product-img { max-width: 100%; max-height: 100%; object-fit: contain; mix-blend-mode: multiply; }
-.phone h3 { font-size: var(--text-xl); line-height: 1.15; font-weight: 600; }
+.phone h3, .phone h2 { font-size: var(--text-xl); line-height: 1.15; font-weight: 600; }
 .facts { margin: 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px 12px; }
 .facts dt { font-size: var(--text-s); color: var(--muted); }
 .facts dd { margin: 0; text-align: right; font-size: 15px; font-weight: 500; overflow-wrap: break-word; }

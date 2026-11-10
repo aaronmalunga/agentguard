@@ -302,7 +302,8 @@
       var waiting = ps.filter(needsBuyer);
       if (!waiting.length) { box.innerHTML = '<div class="panel empty"><strong style="color:var(--ink)">Nothing is waiting for you.</strong>' +
         '<span>Payments the agent can’t make on its own land here.</span><a class="btn" href="#run">Send the agent shopping</a></div>'; return; }
-      box.innerHTML = ""; waiting.forEach(function (p) { var d = document.createElement("div"); d.className = "phone"; d.innerHTML = phoneHTML(p); box.appendChild(d); });
+      box.innerHTML = ""; waiting.forEach(function (p) { var d = document.createElement("div"); d.className = "phone";
+        d.innerHTML = phoneHTML(p).replace("<h3>", "<h2>").replace("</h3>", "</h2>"); box.appendChild(d); });   // axe heading-order: cards sit directly under the page h1
     });
   }
 

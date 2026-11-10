@@ -1,0 +1,34 @@
+{
+ "date": "2026-11-10",
+ "tool": "axe-core 4.14.0 via Playwright + Chrome (headless)",
+ "where": "LOCAL server (FakePayPal, fake AI) running the code of the commit that adds this file; NOT the live site. Live re-check after push.",
+ "rules": "tags wcag2a, wcag2aa, wcag21a, wcag21aa, wcag22aa, best-practice",
+ "csp": "bypass_csp in the test browser only, so axe could be injected; app CSP unchanged",
+ "scope": "5 screens (run, inbox, console, setup, proof) x light/dark, with demo payments present; plus console + payment detail in shadow mode, light/dark",
+ "before_fix": {
+  "violations": 1,
+  "rule": "heading-order",
+  "impact": "moderate",
+  "nodes": 1,
+  "where": "Approvals page, approval card h3 directly under the page h1 (both modes)"
+ },
+ "after_fix": {
+  "violations_per_view": {
+   "light/run": [],
+   "light/inbox": [],
+   "light/console": [],
+   "light/setup": [],
+   "light/proof": [],
+   "dark/run": [],
+   "dark/inbox": [],
+   "dark/console": [],
+   "dark/setup": [],
+   "dark/proof": []
+  },
+  "shadow_console_detail": {
+   "light": [],
+   "dark": []
+  }
+ },
+ "limits": "Automated checks find only part of accessibility problems; no screen-reader or keyboard-only walkthrough done."
+}
