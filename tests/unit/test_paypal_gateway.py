@@ -131,6 +131,31 @@ def test_errors_carry_debug_id_not_secrets(gateway):
         gateway.capture("NOPE", request_id=rid())
     assert err.value.http_status == 404 and err.value.debug_id
     assert "secret" not in str(err.value).lower()
+    assert err.value.typed is True   # the SDK raised its typed ErrorException (APIMatic review G1)
+
+
+def test_untyped_sdk_error_is_still_caught_and_flagged(gateway):
+    from types import SimpleNamespace
+
+    from paypalserversdk.exceptions.api_exception import ApiException
+
+    def boom(_):
+        raise ApiException("odd", SimpleNamespace(status_code=500, headers={"PayPal-Debug-Id": "dbg1"}))
+    with pytest.raises(PayPalError) as err:
+        gateway._call(boom, {}, "capture")
+    assert err.value.typed is False and err.value.http_status == 500 and err.value.debug_id == "dbg1"
+    assert "untyped" in str(err.value)
+
+
+def test_token_failure_says_payment_not_sent_and_names_both_causes(gateway):
+    from apimatic_core.exceptions.auth_validation_exception import AuthValidationException
+
+    def no_token(_):
+        raise AuthValidationException("token")
+    with pytest.raises(PayPalError) as err:
+        gateway._call(no_token, {}, "authorize")
+    msg = str(err.value)
+    assert "NOT sent" in msg and "keys wrong" in msg and "token service unavailable" in msg
 
 
 @pytest.mark.parametrize("value,expected", [("24.99", "24.99"), ("10", "10.00"), ("0.005", "0.01")])

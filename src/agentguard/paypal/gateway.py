@@ -23,6 +23,7 @@ from apimatic_core.exceptions.auth_validation_exception import AuthValidationExc
 from paypalserversdk.api_helper import APIHelper
 from paypalserversdk.configuration import Environment
 from paypalserversdk.exceptions.api_exception import ApiException
+from paypalserversdk.exceptions.error_exception import ErrorException
 from paypalserversdk.http.auth.o_auth_2 import ClientCredentialsAuthCredentials
 from paypalserversdk.models.amount_with_breakdown import AmountWithBreakdown
 from paypalserversdk.models.capture_request import CaptureRequest
@@ -50,6 +51,7 @@ class PayPalError(Exception):
                  issue: str | None = None):
         super().__init__(message)
         self.http_status, self.debug_id, self.issue = http_status, debug_id, issue
+        self.typed: bool | None = None   # True: SDK raised its typed ErrorException (expected); False: bare ApiException
 
 
 @dataclass(frozen=True)
@@ -129,6 +131,18 @@ def _status_str(value) -> str | None:
     return None if value is None else str(getattr(value, "value", value))
 
 
+def _paypal_error(err: ApiException, what: str, *, typed: bool = True) -> "PayPalError":
+    issue = None
+    details = _get(err, "details") or []
+    if details:
+        issue = f"{_get(details[0], 'issue')}: {_get(details[0], 'description')}"
+    debug_id = getattr(err, "debug_id", None) or _debug_id(_get(err, "response", "headers"))
+    e = PayPalError(f"PayPal {what} failed" + ("" if typed else " (untyped SDK error)"),
+                    getattr(err, "response_code", None), debug_id, issue)
+    e.typed = typed
+    return e
+
+
 class PayPalGateway:
     """Thin, tested wrapper around the PayPal Server SDK. Build once, reuse (the SDK caches the token)."""
 
@@ -150,16 +164,16 @@ class PayPalGateway:
         start = time.perf_counter()
         try:
             response = fn(options)
+        # Typed class first, base class last (Context Plugin `python-error-handling`; review G1, 10 Nov): the SDK
+        # registers ErrorException for every status on these calls, so a bare ApiException means the SDK's error
+        # mapping changed. Same fields either way, read defensively (a non-JSON body leaves them unset).
+        except ErrorException as err:
+            raise _paypal_error(err, what) from None
         except ApiException as err:
-            issue = None
-            details = _get(err, "details") or []
-            if details:
-                issue = f"{_get(details[0], 'issue')}: {_get(details[0], 'description')}"
-            debug_id = getattr(err, "debug_id", None) or _debug_id(_get(err, "response", "headers"))
-            raise PayPalError(f"PayPal {what} failed", getattr(err, "response_code", None), debug_id,
-                              issue) from None
-        except AuthValidationException:
-            raise PayPalError(f"PayPal {what}: could not get an access token (check sandbox keys)") from None
+            raise _paypal_error(err, what, typed=False) from None
+        except AuthValidationException:   # raised BEFORE the request is sent (review G2)
+            raise PayPalError(f"PayPal {what}: no access token (sandbox keys wrong, or PayPal's token service "
+                              "unavailable); the payment was NOT sent") from None
         except requests.RequestException as err:  # network, proxy, timeout: outcome UNKNOWN
             raise PayPalError(f"PayPal {what}: network error ({type(err).__name__}); outcome unknown, "
                               "retry with the SAME request id") from None

@@ -325,3 +325,10 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Not a metric:** behaviour checked by unit tests (11 new) and a local run against FakePayPal with a fake AI; no live measurement.
 - **Follow-up (same evening, Aaron):** winners' products had "nothing hanging", so shadow mode must be complete or hidden. Completed: shadow report endpoint (buyer only), banner with running tally on every screen, switch-back button, README "How it works" step 5, threat-model T6 (agent can't switch mode). Not added: advisory mode, per-check shadow (roadmap).
 - **Disclosure for the agent experiment (eval/agent_runs/PLAN.md):** these commits were pushed (and the live guard redeployed) at ~19:30 SA on 10 Nov, between run sets: runs before this used `e96ab27`; G3 runs 7+ and G4 use the shadow-mode code. Enforce mode (what the experiment uses) is unchanged: all 201 earlier tests pass unchanged; shadow paths only run when a mandate is set to shadow. Aaron agreed to push in the gap left by Google 503 errors.
+
+## 10 Nov 2026 (night): second APIMatic Context Plugin review → 3 fixes
+- **Decision:** fix G1 (typed `ErrorException` first), G2 (honest no-token message: payment not sent), W3 (drop cached webhook token on 401, retry once); document G3/G4/W2/W4; defer a startup token check to v2. Full review and response: `docs/apimatic-review-2026-11-11.md`.
+- **Options considered:** fix all nine; fix the three with a real failure mode; document only.
+- **Trade-offs:** three small changes on the money and webhook paths 14 h before code freeze, each with a test; the rest have no effect on today's live paths.
+- **Reasoning:** G2 would point an operator at the wrong cause during a PayPal outage; W3 would leave verification down for hours after a secret rotation; G1 makes an SDK upgrade visible. None changes what gets charged.
+- **Source:** Aaron installed the plugin (`npx context-plugins install https://github.com/paypaldev/server-sdk-context-plugin-preview`; no APIMatic subscription needed, per APIMatic's reply) and ran the review in Claude Code on his laptop.

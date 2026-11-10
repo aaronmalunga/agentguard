@@ -211,7 +211,9 @@ model. Details: [AI governance and model card](docs/ai-governance.md).
 
 **AI used to build it.** Claude (Anthropic), in Claude Code, helped with research, code and documentation, together
 with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
-([how it shaped the gateway](docs/decision-log.md)). Design checks: Hallmark `sloplint` and the Impeccable detector
+([how it shaped the gateway](docs/decision-log.md)). Used twice: to build the PayPal gateway (5 Nov), then to review
+the gateway and webhook verifier against the plugin's Python guidance (10 Nov): 9 findings, no money-path bugs, 3
+fixed with tests ([review and response](docs/apimatic-review-2026-11-11.md)). Design checks: Hallmark `sloplint` and the Impeccable detector
 (rules-based, no AI). Design decisions, evaluation design and final review are by Aaron Malunga.
 
 ## Limitations

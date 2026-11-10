@@ -56,6 +56,40 @@ def test_verifier_posts_headers_webhook_id_and_event_and_caches_token():
     assert sum(url.endswith("/oauth2/token") for url, _ in stub.calls) == 1   # token reused
 
 
+def test_revoked_token_is_dropped_and_verification_retried_once():
+    """APIMatic review W3: a 401 on the cached token must not break verification until the token's own expiry."""
+    class Revoking(PayPalStub):
+        def __init__(self):
+            super().__init__(); self.tokens = 0; self.rejected_once = False
+
+        def post(self, url, **kw):
+            self.calls.append((url, kw))
+            if url.endswith("/v1/oauth2/token"):
+                self.tokens += 1
+                return Resp({"access_token": f"tok{self.tokens}", "expires_in": 32400})
+            if kw["headers"]["Authorization"] == "Bearer tok1":
+                self.rejected_once = True
+                return Resp({}, status=401)
+            return Resp({"verification_status": "SUCCESS"})
+    stub = Revoking()
+    v = WebhookVerifier("id", "secret", "WH-123", session=stub)
+    ok, reason = v.verify(HDRS, {"id": "E1"})
+    assert ok and reason == "PayPal says SUCCESS" and stub.rejected_once and stub.tokens == 2
+
+
+def test_persistent_401_fails_closed_after_one_retry():
+    class AlwaysRejected(PayPalStub):
+        def post(self, url, **kw):
+            self.calls.append((url, kw))
+            if url.endswith("/v1/oauth2/token"):
+                return Resp({"access_token": "tok", "expires_in": 32400})
+            return Resp({}, status=401)
+    stub = AlwaysRejected()
+    ok, reason = WebhookVerifier("id", "secret", "WH-1", session=stub).verify(HDRS, {"id": "E1"})
+    assert not ok and reason == "PayPal says HTTP 401"
+    assert sum(u.endswith("verify-webhook-signature") for u, _ in stub.calls) == 2   # one retry, no loop
+
+
 @pytest.mark.parametrize("headers, verdict, reason", [
     ({k: v for k, v in HDRS.items() if k != "PAYPAL-TRANSMISSION-SIG"}, "SUCCESS", "missing headers"),
     ({**HDRS, "PAYPAL-CERT-URL": "https://evil.example/cert"}, "SUCCESS", "certificate URL"),

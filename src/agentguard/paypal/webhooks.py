@@ -72,6 +72,10 @@ class WebhookVerifier:
             self._token_until = time.monotonic() + max(60, int(body.get("expires_in", 300)) - 120)
             return self._token
 
+    def _post_verify(self, body: dict):
+        return self.http.post(f"{self.base_url}/v1/notifications/verify-webhook-signature", json=body,
+                              headers={"Authorization": f"Bearer {self._access_token()}"}, timeout=TIMEOUT_S)
+
     def verify(self, headers: dict, event: dict) -> tuple[bool, str]:
         """(verified, reason). Never raises: any failure means 'not verified'."""
         h = {k.lower(): v for k, v in headers.items()}
@@ -85,8 +89,11 @@ class WebhookVerifier:
                 "transmission_time": h["paypal-transmission-time"], "webhook_id": self.webhook_id,
                 "webhook_event": event}
         try:
-            r = self.http.post(f"{self.base_url}/v1/notifications/verify-webhook-signature", json=body,
-                               headers={"Authorization": f"Bearer {self._access_token()}"}, timeout=TIMEOUT_S)
+            r = self._post_verify(body)
+            if r.status_code == 401:   # cached token revoked or rotated (review W3): drop it, retry once
+                with self._lock:
+                    self._token_until = 0.0
+                r = self._post_verify(body)
             status = r.json().get("verification_status") if r.ok else f"HTTP {r.status_code}"
         except (requests.RequestException, ValueError, KeyError) as e:
             return False, f"verification call failed ({type(e).__name__})"
