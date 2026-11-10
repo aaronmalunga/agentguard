@@ -120,6 +120,9 @@ def main() -> None:
     ap.add_argument("--groups", default="G1,G2,G3,G4")
     ap.add_argument("--runs", type=int, default=10)
     ap.add_argument("--max-errors", type=int, default=3)
+    ap.add_argument("--resume", default="", help="continue a group from a run number, e.g. G1:6 (earlier groups skipped)")
+    ap.add_argument("--retry-wait", type=int, default=90, help="seconds to wait before the one allowed retry of a "
+                    "provider 503/429 (PLAN.md: an infrastructure error may be repeated once, both lines kept)")
     a = ap.parse_args()
     base = os.environ.get("AGENTGUARD_URL", "https://agentguard-jg01.onrender.com")
     model_id, api_key = os.environ.get("AGENTGUARD_AGENT_MODEL", ""), os.environ.get("GEMINI_API_KEY", "")
@@ -132,24 +135,35 @@ def main() -> None:
     out = OUT_DIR / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.jsonl"
     sha, errors_in_row, summary = plan_sha(), 0, {}
     print(f"plan sha256 {sha[:16]}…  agent {model_id}  guard {guard.get('ai')}  → {out.relative_to(ROOT)}", flush=True)
-    for group in a.groups.split(","):
-        for i in range(1, a.runs + 1):
-            print(f"{group} run {i:2d}: started {datetime.now().strftime('%H:%M:%S')} …", flush=True)
-            base_line = {"plan_sha256": sha, "group": group, "run": i, "agent_model": model_id,
-                         "guard_model": guard.get("ai"), "target": base, "at": datetime.now(UTC).isoformat()}
-            try:
-                rec = {**base_line, **one_run(base, group, model_id, api_key)}
-                errors_in_row = 0
-            except Exception as e:  # noqa: BLE001 -- infrastructure failures are reported, never hidden
-                rec = {**base_line, "outcome": "error", "error": f"{type(e).__name__}: {str(e)[:300]}"}
-                errors_in_row += 1
-            with out.open("a", encoding="utf-8") as f:
-                f.write(json.dumps(rec) + "\n")
+    groups = a.groups.split(",")
+    start_group, start_run = (a.resume.split(":") + ["1"])[:2] if a.resume else (groups[0], "1")
+    groups = groups[groups.index(start_group):] if start_group in groups else groups
+    for group in groups:
+        first = int(start_run) if group == start_group else 1
+        for i in range(first, a.runs + 1):
+            for attempt in (1, 2):
+                print(f"{group} run {i:2d}: started {datetime.now().strftime('%H:%M:%S')} …", flush=True)
+                base_line = {"plan_sha256": sha, "group": group, "run": i, "attempt": attempt, "agent_model": model_id,
+                             "guard_model": guard.get("ai"), "target": base, "at": datetime.now(UTC).isoformat()}
+                try:
+                    rec = {**base_line, **one_run(base, group, model_id, api_key)}
+                except Exception as e:  # noqa: BLE001 -- infrastructure failures are reported, never hidden
+                    rec = {**base_line, "outcome": "error", "error": f"{type(e).__name__}: {str(e)[:300]}"}
+                with out.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec) + "\n")
+                print(f"{group} run {i:2d}: {rec['outcome']:<18} calls={rec.get('create_order_calls', '-')} "
+                      f"statuses={rec.get('statuses', rec.get('error', ''))[:160] if rec['outcome'] == 'error' else rec.get('statuses')} "
+                      f"({rec.get('agent_wall_s', '-')} s)", flush=True)
+                busy = rec["outcome"] == "error" and any(c in rec["error"] for c in ("503", "UNAVAILABLE", "429"))
+                if not (busy and attempt == 1):
+                    break
+                print(f"   provider busy: waiting {a.retry_wait} s, then one retry (both lines kept)", flush=True)
+                time.sleep(a.retry_wait)
             summary.setdefault(group, Counter())[rec["outcome"]] += 1
-            print(f"{group} run {i:2d}: {rec['outcome']:<18} calls={rec.get('create_order_calls', '-')} "
-                  f"statuses={rec.get('statuses', rec.get('error', ''))} ({rec.get('agent_wall_s', '-')} s)", flush=True)
+            errors_in_row = errors_in_row + 1 if rec["outcome"] == "error" else 0
             if errors_in_row >= a.max_errors:
-                sys.exit(f"Stopping: {errors_in_row} errors in a row. Lines so far are in {out}.")
+                sys.exit(f"Stopping: {errors_in_row} runs in a row failed even after a retry. Resume later with "
+                         f"--resume {group}:{i + 1 if i < a.runs else i}. Lines so far are in {out}.")
             time.sleep(4)                                # stay well under the demo's 30 paid calls/min
     print("\nSummary (outcome counts per group):", json.dumps({g: dict(c) for g, c in summary.items()}))
 
