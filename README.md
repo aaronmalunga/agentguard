@@ -93,6 +93,12 @@ flowchart LR
    "partially refunded" and then "refunded", each notice verified by PayPal (4 verified, 0 rejected). Reversals
    and disputes are tested with PayPal's documented event formats only.
 
+5. **Shadow mode, for rolling out** ([ADR-0010](docs/adr/0010-shadow-mode.md)). A merchant or agent platform can
+   switch a mandate to shadow first: the buyer's hard limits still block, but the hidden-text, AI and price checks
+   only record what they would have done, and a banner keeps a running tally ("would have stopped 2 of 3 payments,
+   and why"). After a trial on real traffic they switch to enforce, the default. Switching makes a new signed rules
+   version, and only the buyer's token can do it: an agent can't turn the guard down.
+
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
 

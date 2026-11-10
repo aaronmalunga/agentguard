@@ -216,6 +216,23 @@ class PaymentService:
                                              lambda p: paypal_events.plan(p, event_type, resource, evidence),
                                              data, audit.link)
 
+    def shadow_report(self, mandate_id: str) -> dict:
+        """What shadow mode is for (ADR-0010): how often the full guard WOULD have stopped a payment, and why.
+        Counts only payments decided while this mandate was in shadow mode."""
+        m = self.mandates.get(mandate_id)
+        rows = [json.loads(p["shadow_json"]) for p in self.store.payments()
+                if p["mandate_id"] == mandate_id and p.get("shadow_json")]
+        stopped = [r for r in rows if r["would_have"] != r["applied"]]
+        reasons: dict[str, int] = {}
+        for r in stopped:
+            for code in dict.fromkeys(r["logged_only"]):
+                reasons[code] = reasons.get(code, 0) + 1
+        by_level = {lvl: sum(1 for r in stopped if r["would_have"] == lvl) for lvl in ("hold", "ask_first", "block")}
+        return {"mandate_id": mandate_id, "mode": m.mode if m else None, "decided_in_shadow": len(rows),
+                "would_have_stopped": len(stopped), "would_have": by_level,
+                "blocked_by_hard_limits": sum(1 for r in rows if r["applied"] == "block"),
+                "reasons": dict(sorted(reasons.items(), key=lambda kv: -kv[1]))}
+
     def verify_audit(self) -> dict:
         return audit.verify(self.store.audit_entries())
 

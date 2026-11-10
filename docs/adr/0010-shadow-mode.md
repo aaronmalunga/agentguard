@@ -40,4 +40,7 @@ as hashed, so the public check (SHA-256 of the embedded mandate) is unchanged.
   "Shadow: would ask".
 - ➖ An AI outage in shadow is logged, not asked (enforce still fails safe to "ask the buyer").
 - ➖ No advisory mode and no per-check shadow (one switch per mandate). Roadmap.
-- Tests: `tests/unit/test_shadow.py` (11).
+- ➕ The result is a report, not just flags: `GET /api/mandates/{id}/shadow-report` (buyer only) counts payments
+  decided in shadow, how many the full guard would have stopped, and why; the console shows it in a banner on every
+  screen with a "Switch back to enforce" button (added 10 Nov after Aaron's "complete product, nothing hanging" test).
+- Tests: `tests/unit/test_shadow.py` (14).

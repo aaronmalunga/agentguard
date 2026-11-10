@@ -73,6 +73,33 @@
   }
   function statusChip(st) { var s = STATUS[st] || ["neutral", st]; return '<span class="status ' + s[0] + '">' + esc(s[1]) + "</span>"; }
   var WOULD = { hold: "held it for you", ask_first: "asked you first", block: "blocked it" };
+  var CODE_WORDS = { hidden_instruction: "hidden instruction on the page", ai_page_steering: "page steering the agent",
+    ai_page_instruction_seen: "AI saw a page instruction", ai_followed_page_instruction: "agent followed the page",
+    ai_cart_mismatch: "cart not what was asked", cart_differs_on_manipulated_page: "cart changed by the page",
+    price_above_reference: "price above usual", agent_price_differs: "agent misreported the price",
+    agent_title_differs: "agent misdescribed the item", recipient_changed: "recipient name changed",
+    page_too_long_to_check: "page too long to check", ai_unavailable: "AI check unavailable" };
+  var MID = "thandi-earbuds";
+  function refreshShadow() {
+    return api("/api/mandates/" + MID + "/shadow-report").then(function (r) {
+      var b = $("shadowBanner"); b.hidden = r.mode !== "shadow"; if (b.hidden) return;
+      var why = Object.keys(r.reasons).map(function (k) { return (CODE_WORDS[k] || k.replace(/_/g, " ")) + " " + r.reasons[k]; }).join(", ");
+      $("shadowTally").textContent = r.decided_in_shadow ? " So far it would have stopped " + r.would_have_stopped + " of " + r.decided_in_shadow +
+        " payment" + (r.decided_in_shadow === 1 ? "" : "s") + (why ? " (" + why + ")" : "") + "." +
+        (r.blocked_by_hard_limits ? " Hard limits blocked " + r.blocked_by_hard_limits + "." : "") : " No payments decided in shadow mode yet.";
+    }).catch(function () { $("shadowBanner").hidden = true; });
+  }
+  function setMode(next) {
+    return api("/api/mandates").then(function (ms) {
+      var m = ms.filter(function (x) { return x.mandate.mandate_id === MID; })[0]; if (!m) throw new Error("No rules to change.");
+      var cur = m.mandate; if (cur.mode === next) return cur;
+      return api("/api/mandates", { method: "POST", body: { mandate: Object.assign({}, cur, { version: cur.version + 1, mode: next }) } });
+    }).then(function () {
+      toast(next === "shadow" ? "Shadow mode on (new rules version). Judgement checks are now logged only." : "Enforce mode on (new rules version). Every check acts again.");
+      refreshShadow(); if (!$("view-setup").hidden) loadRules();
+    }).catch(function (err) { toast(err.message); });
+  }
+  $("shadowOff").addEventListener("click", function () { setMode("enforce"); });
   function shadowChip(p) { var sh = p && p.shadow; if (!sh || sh.would_have === sh.applied) return "";
     var shortW = { hold: "would hold", ask_first: "would ask", block: "would block" }[sh.would_have] || sh.would_have;
     return ' <span class="status ask" title="Shadow mode: the full guard would have ' + esc(WOULD[sh.would_have] || sh.would_have) + '. Logged only, not enforced.">Shadow: ' + esc(shortW) + "</span>"; }
@@ -91,6 +118,7 @@
     if (r === "console") loadConsole();
     if (r === "setup") { loadRules(); loadKeys(); }
     if (r === "proof") loadProof();
+    refreshShadow();
   }
   window.addEventListener("hashchange", function () { route(); $("main").focus({ preventScroll: true }); });
 
@@ -273,7 +301,7 @@
     document.querySelectorAll("#scenarios .chip").forEach(function (c) { c.setAttribute("aria-pressed", c === btn ? "true" : "false"); c.disabled = true; });
     pendingTrace(); $("cartLine").textContent = "The agent is shopping.";
     return api("/api/demo/run", { method: "POST", body: body }).then(function (r) {
-      showPage(r.page); renderDecision(r.payment);
+      showPage(r.page); renderDecision(r.payment); refreshShadow();
     }).catch(function (err) {
       $("trace").innerHTML = ""; $("outcome").hidden = true; $("traceHint").textContent = "Something went wrong";
       $("cartLine").innerHTML = '<span class="error-box" style="display:block">' + esc(err.message) + " Try again, or reset the demo in the console.</span>";
@@ -362,7 +390,7 @@
   });
   $("quick").addEventListener("input", function () { if (grid) grid.setGridOption("quickFilterText", this.value); });
   $("resetDemo").addEventListener("click", function () {
-    api("/api/demo/reset", { method: "POST" }).then(function () { toast("Demo reset. Fresh budget and an empty log."); loadConsole();
+    api("/api/demo/reset", { method: "POST" }).then(function () { toast("Demo reset. Fresh budget and an empty log."); loadConsole(); refreshShadow();
       $("detailBody").innerHTML = '<span class="hint">Select a payment to see its full record.</span>'; });
   });
 
@@ -422,14 +450,7 @@
         '<button class="btn" type="button" id="toggleMode">' + (md.mode === "shadow" ? "Switch to enforce mode" : "Try shadow mode") + "</button>" +
         '<p class="hint">Shadow mode is for trying AgentGuard on real traffic before it acts: budget, shops, price cap, quantity, dates and address still block; the hidden-text, AI and price checks only record what they would have done.</p>' +
         '<p class="hint">Fingerprint <span class="num">' + esc(m.fingerprint.slice(0, 20)) + "…</span> goes into every PayPal order, so the rules can’t be changed after the fact.</p>";
-      $("toggleMode").addEventListener("click", function () {
-        var b = this; b.setAttribute("aria-busy", "true");
-        var next = Object.assign({}, current, { version: current.version + 1, mode: current.mode === "shadow" ? "enforce" : "shadow" });
-        api("/api/mandates", { method: "POST", body: { mandate: next } }).then(function () {
-          toast(next.mode === "shadow" ? "Shadow mode on (new rules version). Judgement checks are now logged only." : "Enforce mode on (new rules version). Every check acts again.");
-          loadRules();
-        }).catch(function (err) { toast(err.message); b.removeAttribute("aria-busy"); });
-      });
+      $("toggleMode").addEventListener("click", function () { this.setAttribute("aria-busy", "true"); setMode(current.mode === "shadow" ? "enforce" : "shadow"); });
     }).catch(function (err) { $("activeRules").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
   }
   /* ------------------------------------------------------------ agent keys (M1) */

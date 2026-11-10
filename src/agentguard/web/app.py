@@ -436,6 +436,13 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         m = st.svc.activate_mandate(body.mandate)
         return {"mandate": m.model_dump(mode="json"), "fingerprint": m.fingerprint(), "active": True}
 
+    @app.get("/api/mandates/{mandate_id}/shadow-report", tags=["mandates"], dependencies=[buyer])
+    def shadow_report(mandate_id: str):
+        """Shadow mode's result (ADR-0010): how many payments the full guard would have stopped, and why."""
+        if mandate_id not in st.svc.mandates:
+            _err(404, "not_found", f"No rules '{mandate_id}'.")
+        return st.svc.shadow_report(mandate_id)
+
     @app.get("/api/mandates", tags=["mandates"], dependencies=[buyer])
     def mandates():
         return [{"mandate": m.model_dump(mode="json"), "fingerprint": m.fingerprint(),

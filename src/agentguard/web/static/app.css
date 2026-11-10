@@ -271,3 +271,10 @@ footer.foot { display: flex; flex-wrap: wrap; justify-content: space-between; ga
   .modes .badge.model { display: none; }
   #grid { height: 440px; }
 }
+
+/* shadow mode banner (ADR-0010) */
+.shadow-banner { display: flex; gap: 16px; align-items: center; justify-content: space-between; flex-wrap: wrap;
+  margin: 12px 0 0; padding: 12px 16px; border: 1px solid var(--ask); border-radius: var(--r-3);
+  background: var(--ask-well); color: var(--ink); font-size: var(--text-s); line-height: 1.5; }
+.shadow-banner[hidden] { display: none; }
+.shadow-banner strong { font-weight: 600; }

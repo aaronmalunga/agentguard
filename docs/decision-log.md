@@ -323,3 +323,4 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Reasoning:** AgentGuard is the payment path, so "relax everything" would mean no guard; the buyer's own limits are facts, not AgentGuard's judgement, so there is nothing to measure by relaxing them.
 - **Fingerprint:** "enforce" is left out of the canonical JSON so pre-10-Nov fingerprints still verify; receipts embed the mandate exactly as hashed.
 - **Not a metric:** behaviour checked by unit tests (11 new) and a local run against FakePayPal with a fake AI; no live measurement.
+- **Follow-up (same evening, Aaron):** winners' products had "nothing hanging", so shadow mode must be complete or hidden. Completed: shadow report endpoint (buyer only), banner with running tally on every screen, switch-back button, README "How it works" step 5, threat-model T6 (agent can't switch mode). Not added: advisory mode, per-check shadow (roadmap).

@@ -104,3 +104,34 @@ def test_catalogue_block_is_enforced():
 def test_catalogue_mandate_defaults_to_enforce():
     m = Mandate.from_catalogue({**json.loads(MANDATE.model_dump_json()), "budget_total": 80, "max_item_price": 80})
     assert m.mode == "enforce"
+
+
+def test_shadow_report_counts_would_have_stopped_and_reasons():
+    svc, _ = shadow_svc()
+    svc.submit(sreq(price=20.0), request_key="k1")                         # clean
+    svc.submit(sreq(price=20.0), request_key="k2", page_text=POISON)       # would ask
+    svc.submit(sreq(price=20.0, ref=10.0), request_key="k3")               # would hold (price)
+    r = svc.shadow_report("M2")
+    assert r["mode"] == "shadow" and r["decided_in_shadow"] == 3 and r["would_have_stopped"] == 2
+    assert r["would_have"] == {"hold": 1, "ask_first": 1, "block": 0}
+    assert r["reasons"] == {"hidden_instruction": 1, "price_above_reference": 1}
+    assert r["blocked_by_hard_limits"] == 0
+
+
+def test_shadow_report_ignores_enforce_payments():
+    svc, _ = make()
+    svc.submit(req(), request_key="k1", page_text=POISON)
+    assert svc.shadow_report("M2")["decided_in_shadow"] == 0
+
+
+def test_shadow_report_api_is_buyer_only_and_agent_cannot_switch_mode():
+    from tests.unit.test_web import AGENT, BUYER, client
+    c, st = client()
+    mid = "thandi-earbuds"
+    assert c.get(f"/api/mandates/{mid}/shadow-report", headers=AGENT).status_code in (401, 403)
+    cur = st.svc.mandates[mid].model_dump(mode="json")
+    nxt = {**cur, "version": cur["version"] + 1, "mode": "shadow"}
+    assert c.post("/api/mandates", json={"mandate": nxt}, headers=AGENT).status_code in (401, 403)
+    assert c.post("/api/mandates", json={"mandate": nxt}, headers=BUYER).status_code == 201
+    r = c.get(f"/api/mandates/{mid}/shadow-report", headers=BUYER).json()
+    assert r["mode"] == "shadow" and r["decided_in_shadow"] == 0

@@ -40,6 +40,12 @@
     </div>
   </header>
 
+  <section id="shadowBanner" class="shadow-banner" role="status" aria-live="polite" hidden>
+    <div><strong>Shadow mode is on.</strong> AgentGuard is watching, not stopping: the buyer&rsquo;s hard limits (budget, shops, price cap, dates, address) still block, but the hidden-text, AI and price checks only record what they would have done.
+      <span id="shadowTally"></span></div>
+    <button class="btn" type="button" id="shadowOff">Switch back to enforce</button>
+  </section>
+
   <main id="main" tabindex="-1">
 
     <!-- ===================== SHOP AND AGENT ===================== -->
