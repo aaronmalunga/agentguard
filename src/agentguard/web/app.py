@@ -257,6 +257,14 @@ def view(p: dict) -> dict:
     return out
 
 
+def agent_view(p: dict) -> dict:
+    """What an agent may learn about its own payment: enough to fix its request, nothing more (no AI internals)."""
+    v = view(p)
+    return {"payment_id": v["id"], "status": v["status"], "decision": v.get("level"), "amount": v["amount"],
+            "paypal_called": v["paypal_called"], "paypal_status": v.get("paypal_status"),
+            "findings": [{k: f.get(k) for k in ("code", "level", "reason", "would_pass_if")} for f in v["findings"] or []]}
+
+
 # ------------------------------------------------------------------------------------------------ factory
 def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = None,
                clock: Callable[[], datetime] | None = None, signer: ReceiptSigner | None = None,
@@ -473,6 +481,24 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         rec = keys.revoke(_current.get(), agent_id) or _err(404, "not_found", f"No agent '{agent_id}' here.")
         st.svc._audit("agent_key_revoked", None, {"agent_id": rec.agent_id, "name": rec.name})
         return rec.public()
+
+    @app.get("/api/agent/mandate", tags=["agents"], dependencies=[agent])
+    def agent_mandate(mandate_id: str = "thandi-earbuds"):
+        """The agent's task: which rules are in force and what the buyer asked, in their own words. Not the limits
+        themselves, so a compromised agent can't tune a request to sit just under them."""
+        m = st.svc.mandates.get(mandate_id) or _err(404, "not_found", f"No rules '{mandate_id}'.")
+        return {"mandate_id": m.mandate_id, "version": m.version, "buyer_instruction": m.buyer_instruction}
+
+    @app.get("/api/agent/payments/{pid}", tags=["agents"], dependencies=[agent])
+    def agent_payment(pid: str, request: Request):
+        """An agent with its own key reads the outcome of ITS payments only: decision, reasons, PayPal status. Never
+        the buyer's other payments, the log or the AI's internals."""
+        rec = getattr(request.state, "agent_key", None) or _err(403, "agent_key_required",
+                                                                "Only a per-agent key can read payment status.")
+        p = st.svc.store.payment(pid)
+        if not p or p.get("agent_id") != rec.agent_id:
+            _err(404, "not_found", f"No payment '{pid}' for this agent.")
+        return agent_view(p)
 
     @app.get("/api/payments", tags=["payments"], dependencies=[buyer])
     def payments():

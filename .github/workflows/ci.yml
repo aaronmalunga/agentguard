@@ -17,7 +17,7 @@ jobs:
         run: python -m compileall -q spike
       - uses: astral-sh/setup-uv@v5
       - name: Install (locked)
-        run: uv sync --locked
+        run: uv sync --locked --all-extras
       - name: Lint
         run: uv run ruff check src tests eval scripts
       - name: Unit tests (fake PayPal, no keys)

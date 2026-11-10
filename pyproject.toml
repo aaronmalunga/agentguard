@@ -16,6 +16,15 @@ dependencies = [
   "cryptography>=43",
 ]
 
+[project.scripts]
+agentguard-mcp = "agentguard.agent.mcp_server:main"
+
+[project.optional-dependencies]
+agent = [
+    "mcp>=2.3,<3",
+    "strands-agents[gemini]>=1.0",
+]
+
 [dependency-groups]
 dev = [
   "pytest>=8",

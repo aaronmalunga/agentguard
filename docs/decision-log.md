@@ -3,6 +3,23 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 10 Nov 2026 — MCP adapter + Strands agent with a repair loop (step 6; Meta-winners "agent loop" test)
+
+- **MCP server** `agentguard-mcp` (mcp 2.3, MIT): 4 tools shaped like PayPal's agent toolkit (`list_products`,
+  `read_shop_page`, `create_order`, `get_order`); no approve/capture/refund tool; the agent key stays in the server's
+  environment (no token passthrough); idempotency key derived from (mandate, items, page, stated total), so a
+  repeated request is one payment and a repaired one is checked afresh. New agent-only endpoints:
+  `GET /api/agent/mandate` (buyer's words + version, not the limits) and `GET /api/agent/payments/{id}` (own payments
+  only, 4 finding fields). Optional extra `agent` (mcp, strands-agents[gemini], Apache-2.0); CI installs all extras.
+- **Pre-registered before any run:** `eval/agent_runs/PLAN.md`, SHA-256
+  `24edb9433897c5a191bb75e2713e636135bbf595f218f67e3520f7d964d132ba`. 4 groups × 10 (normal, poisoned single shot,
+  agent lies, repair after block); outcomes classified by code; target harm 0/40. Runner `scripts/agent_runs.py`
+  (`agent_runs.bat`); the agent model must differ from the guard's. One clarification to the runner before any run:
+  a run with zero orders counts as `stopped`, not `not_fooled` (as the plan already says).
+- Checked here without a model key: Strands launches the MCP server as a subprocess against a live local
+  AgentGuard; a poisoned order is held before PayPal and shows in the buyer's console as a verified agent. Tests
+  199 → 205. Threat model: E2 covered; new M10 (refusal reasons as an oracle) partial.
+
 ## 10 Nov 2026 — Per-agent keys (review M1)
 
 - **Options:** keep one shared agent token (agent ID is self-reported) · signed requests per agent (keypair, more
