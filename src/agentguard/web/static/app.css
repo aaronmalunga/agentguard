@@ -59,6 +59,9 @@ body { margin: 0; background: var(--paper); color: var(--ink); font-family: var(
 a { color: inherit; }
 a:hover { text-decoration: underline; }
 :where(a, button, input, textarea, select, [tabindex]):focus-visible { outline: 2px solid var(--focus); outline-offset: 2px; }
+/* the main region takes focus after each route change so screen readers announce the new page; it is not a control,
+   so it shows no ring */
+main:focus, main:focus-visible { outline: none; }
 h1, h2, h3 { margin: 0; font-weight: 500; text-wrap: balance; }
 p { margin: 0; }
 .num { font-variant-numeric: tabular-nums; }
@@ -95,7 +98,7 @@ p { margin: 0; }
 .nav { display: flex; flex-wrap: wrap; gap: 2px; }
 .nav a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 12px; border-radius: var(--r-3);
   text-decoration: none; color: var(--muted); font-size: 15px; transition: background-color var(--dur-micro) var(--ease-out), color var(--dur-micro) var(--ease-out); }
-.nav a:hover { color: var(--ink); background: var(--well); }
+@media (hover: hover) { .nav a:hover { color: var(--ink); background: var(--well); } }   /* no sticky hover after a tap on phones */
 .nav a[aria-current="page"] { color: var(--ink); background: var(--well); font-weight: 500; }
 .nav .count { margin-left: 8px; min-width: 24px; padding: 0 8px; border-radius: 999px; background: var(--accent);
   color: var(--accent-ink); font-size: 13px; font-weight: 600; text-align: center; }
@@ -270,6 +273,11 @@ footer.foot { display: flex; flex-wrap: wrap; justify-content: space-between; ga
   .bar-row .bar-track { grid-column: 1 / -1; grid-row: 2; }
   .modes .badge.model { display: none; }
   #grid { height: 440px; }
+  /* phones: brand + badges on one row, the five tabs on one swipeable row (UX review 10 Nov) */
+  .bar { justify-content: space-between; row-gap: 6px; }
+  .nav { order: 3; flex: 1 1 100%; flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 -4px; }
+  .nav::-webkit-scrollbar { display: none; }
+  .nav a { flex: none; padding: 0 10px; }
 }
 
 /* shadow mode banner (ADR-0010) */
@@ -278,3 +286,16 @@ footer.foot { display: flex; flex-wrap: wrap; justify-content: space-between; ga
   background: var(--ask-well); color: var(--ink); font-size: var(--text-s); line-height: 1.5; }
 .shadow-banner[hidden] { display: none; }
 .shadow-banner strong { font-weight: 600; }
+
+/* start-here path and the buyer's rules on the Shop page (UX review 10 Nov) */
+.start-here { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: var(--text-s); color: var(--ink-2); }
+.start-here li { display: flex; align-items: center; gap: 8px; }
+.start-here .n { display: inline-grid; place-items: center; width: 22px; height: 22px; border-radius: 50%;
+  border: 1px solid var(--accent); color: var(--accent); font-size: 12px; font-weight: 600; flex: none; }
+.start-here a { color: var(--accent); }
+.rules-strip { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; padding: 12px 16px; border: 1px solid var(--rule);
+  border-radius: var(--r-3); background: var(--well); font-size: var(--text-s); color: var(--ink-2); position: relative; z-index: 1; }
+.rules-strip q { color: var(--ink); quotes: "\201C" "\201D"; }
+.rules-strip .who { color: var(--muted); }
+.rules-strip .num { color: var(--ink); }
+.rules-strip a { color: var(--accent); margin-left: auto; }

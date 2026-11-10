@@ -37,10 +37,10 @@
   function ambient() {
     if (reduce) return;
     var seed = 7; function rnd() { seed = (seed * 9301 + 49297) % 233280; return seed / 233280; }
-    for (var i = 0; i < 34; i++) {
+    for (var i = 0; i < 22; i++) {   // fewer and fainter after the UX review (10 Nov): calmer behind the work
       var s = document.createElement("span"); s.textContent = "$";
       s.style.left = (rnd() * 100).toFixed(2) + "%"; s.style.fontSize = (12 + Math.floor(rnd() * 18)) + "px";
-      s.style.opacity = (0.05 + rnd() * 0.09).toFixed(2);
+      s.style.opacity = (0.03 + rnd() * 0.04).toFixed(2);
       s.style.animationDuration = (18 + rnd() * 18).toFixed(1) + "s"; s.style.animationDelay = (-rnd() * 34).toFixed(1) + "s";
       rain.appendChild(s);
     }
@@ -48,7 +48,7 @@
   function coin(kind) {
     if (reduce || !kind) return;
     var s = document.createElement("span"); s.textContent = "$"; s.className = "live " + kind;
-    s.style.left = (20 + Math.random() * 60).toFixed(1) + "%"; s.style.fontSize = "30px"; s.style.opacity = "0.8";
+    s.style.left = (20 + Math.random() * 60).toFixed(1) + "%"; s.style.fontSize = "28px"; s.style.opacity = "0.5";
     s.style.animationDuration = kind === "approve" ? "5s" : "3.2s";
     rain.appendChild(s); setTimeout(function () { s.remove(); }, 9000);
   }
@@ -80,6 +80,19 @@
     agent_title_differs: "agent misdescribed the item", recipient_changed: "recipient name changed",
     page_too_long_to_check: "page too long to check", ai_unavailable: "AI check unavailable" };
   var MID = "thandi-earbuds";
+  function money(c) { return "$" + (c / 100).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
+  function refreshRulesStrip() {
+    var el = $("rulesStrip"); if (!el) return;
+    return api("/api/mandates").then(function (ms) {
+      var m = ms.filter(function (x) { return x.mandate.mandate_id === MID; })[0] || ms[0];
+      if (!m) { el.innerHTML = '<span class="hint">No rules yet.</span> <a href="#setup">Set the rules</a>'; return; }
+      var md = m.mandate, b = m.budget || {}, used = (b.spent_cents || 0) + (b.reserved_cents || 0);
+      el.innerHTML = '<span class="who">Thandi asked her agent:</span> <q>' + esc(md.buyer_instruction || "") + "</q>" +
+        '<span>Spent or held: <span class="num">' + money(used) + "</span> of " + money(md.budget_total_cents) + "</span>" +
+        (md.mode === "shadow" ? '<span class="status ask">Shadow mode</span>' : "") +
+        '<a href="#setup">See or change the rules</a>';
+    }).catch(function () { el.innerHTML = '<span class="hint">Couldn’t load the rules.</span>'; });
+  }
   function refreshShadow() {
     return api("/api/mandates/" + MID + "/shadow-report").then(function (r) {
       var b = $("shadowBanner"); b.hidden = r.mode !== "shadow"; if (b.hidden) return;
@@ -118,7 +131,9 @@
     if (r === "console") loadConsole();
     if (r === "setup") { loadRules(); loadKeys(); }
     if (r === "proof") loadProof();
-    refreshShadow();
+    refreshShadow(); if (r === "run") refreshRulesStrip();
+    var cur = document.querySelector('.nav a[aria-current="page"]');   // phones: keep the current tab in view in the swipeable row
+    if (cur && cur.scrollIntoView) { try { cur.scrollIntoView({ block: "nearest", inline: "nearest" }); } catch (e) {} }
   }
   window.addEventListener("hashchange", function () { route(); $("main").focus({ preventScroll: true }); });
 
@@ -307,7 +322,7 @@
     document.querySelectorAll("#scenarios .chip").forEach(function (c) { c.setAttribute("aria-pressed", c === btn ? "true" : "false"); c.disabled = true; });
     pendingTrace(); $("cartLine").textContent = "The agent is shopping.";
     return api("/api/demo/run", { method: "POST", body: body }).then(function (r) {
-      showPage(r.page); renderDecision(r.payment); refreshShadow();
+      showPage(r.page); renderDecision(r.payment); refreshShadow(); refreshRulesStrip();
     }).catch(function (err) {
       $("trace").innerHTML = ""; $("outcome").hidden = true; $("traceHint").textContent = "Something went wrong";
       $("cartLine").innerHTML = '<span class="error-box" style="display:block">' + esc(err.message) + " Try again, or reset the demo in the console.</span>";
