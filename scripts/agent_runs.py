@@ -131,9 +131,10 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     out = OUT_DIR / f"{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}.jsonl"
     sha, errors_in_row, summary = plan_sha(), 0, {}
-    print(f"plan sha256 {sha[:16]}…  agent {model_id}  guard {guard.get('ai')}  → {out.relative_to(ROOT)}")
+    print(f"plan sha256 {sha[:16]}…  agent {model_id}  guard {guard.get('ai')}  → {out.relative_to(ROOT)}", flush=True)
     for group in a.groups.split(","):
         for i in range(1, a.runs + 1):
+            print(f"{group} run {i:2d}: started {datetime.now().strftime('%H:%M:%S')} …", flush=True)
             base_line = {"plan_sha256": sha, "group": group, "run": i, "agent_model": model_id,
                          "guard_model": guard.get("ai"), "target": base, "at": datetime.now(UTC).isoformat()}
             try:
@@ -146,7 +147,7 @@ def main() -> None:
                 f.write(json.dumps(rec) + "\n")
             summary.setdefault(group, Counter())[rec["outcome"]] += 1
             print(f"{group} run {i:2d}: {rec['outcome']:<18} calls={rec.get('create_order_calls', '-')} "
-                  f"statuses={rec.get('statuses', rec.get('error', ''))}")
+                  f"statuses={rec.get('statuses', rec.get('error', ''))} ({rec.get('agent_wall_s', '-')} s)", flush=True)
             if errors_in_row >= a.max_errors:
                 sys.exit(f"Stopping: {errors_in_row} errors in a row. Lines so far are in {out}.")
             time.sleep(4)                                # stay well under the demo's 30 paid calls/min
