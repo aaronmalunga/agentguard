@@ -216,7 +216,7 @@ with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
 - **The demo forgets on restart.** Demo data is kept in memory, so a restart or redeploy wipes it (the 10 Nov live
   refund check is kept in [evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md) for that reason).
   Receipts still carry their chain position and the PayPal order's `custom_id`. What a real deployment would add
-  (durable storage, tenants, KMS key, reconciliation, shadow mode) is listed in
+  (durable storage, tenants, KMS key, reconciliation, advisory mode) is listed in
   [docs/production-gaps.md](docs/production-gaps.md).
 - **The demo agent is scripted**, so each scenario behaves the same every time. Real agents send real requests
   through the same API.

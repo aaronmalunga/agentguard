@@ -315,3 +315,11 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Cause:** every push to `main` redeploys Render; demo sessions are in-memory SQLite, so a redeploy wipes them. Evidence: after pushes `6966aa7` and `03b77ee` the live site had 0 payments and all webhook counts at 0 (counts are process-wide, so they only reset on a restart).
 - **Decision:** no storage change before submission (Render free has no persistent disk; a rebuild two days before the deadline is the larger risk). Instead: footer note on the page, README limitation linked to `docs/production-gaps.md`, refund check preserved in `evidence/live_checks/`. After submission there are no pushes (freeze), so judges only lose data on a platform restart.
 - **Also added:** `docs/production-gaps.md` (demo vs production table and v2 plan) from the recruiter/payments-engineer review.
+
+## 10 Nov 2026 (evening): shadow mode built (Aaron: "yes"; scope "judgement checks only") → ADR-0010
+- **Decision:** a mandate can be set to `shadow`. The buyer's hard limits (rules + catalogue blocks) still act; the detector, AI, price and claim checks are only logged as "would have held / asked / blocked". Enforce stays the default.
+- **Options considered:** shadow relaxes everything; judgement checks only (chosen); add an advisory mode too.
+- **Trade-offs:** measures false asks on real traffic without risking spend outside the buyer's limits; but in shadow an injection attack inside the limits succeeds (labelled on the console), and an AI outage is logged instead of asked.
+- **Reasoning:** AgentGuard is the payment path, so "relax everything" would mean no guard; the buyer's own limits are facts, not AgentGuard's judgement, so there is nothing to measure by relaxing them.
+- **Fingerprint:** "enforce" is left out of the canonical JSON so pre-10-Nov fingerprints still verify; receipts embed the mandate exactly as hashed.
+- **Not a metric:** behaviour checked by unit tests (11 new) and a local run against FakePayPal with a fake AI; no live measurement.

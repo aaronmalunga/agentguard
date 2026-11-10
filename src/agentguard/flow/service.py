@@ -5,6 +5,10 @@
   hold       -> budget reserved, PayPal AUTHORIZE (funds held) -> buyer approves (capture) or rejects (void, $0)
   approve    -> budget reserved, AUTHORIZE, then capture
 
+Shadow mode (mandate.mode == "shadow", ADR-0010): the full guard still runs and its verdict is recorded as "would
+have", but only the buyer's hard limits act. The payment row's `level` is what was APPLIED; `shadow_json` keeps
+what the full guard would have done, for measuring false asks before switching to enforce.
+
 Every PayPal call uses a request id derived from the payment id, so a retry reuses it (no double charge).
 The order carries the mandate fingerprint in PayPal's custom_id (decision D2). An unknown PayPal outcome keeps
 the budget reserved until it is read back (ADR-0007).
@@ -23,7 +27,7 @@ from agentguard.flow import audit, paypal_events
 from agentguard.flow.catalogue import AgentCart, Catalogue
 from agentguard.flow.receipts import ReceiptSigner
 from agentguard.flow.store import Store
-from agentguard.guard.decision import Decision, Finding, combine, escalate
+from agentguard.guard.decision import Decision, Finding, apply_shadow, combine, escalate
 from agentguard.guard.engine import LAYERS, evaluate
 from agentguard.guard.request import Payee, PaymentRequest
 from agentguard.mandate import Mandate
@@ -127,10 +131,12 @@ class PaymentService:
         if pre_findings:                                   # catalogue findings (D3) can only raise the level
             decision = escalate(decision, pre_findings)
         decision.trace = trace
+        shadow = apply_shadow(decision) if mandate is not None and mandate.mode == "shadow" else None
         amount = sum(line_total_cents(i.unit_price, i.quantity) for i in request.items)
         pid = self._new_record(request_key, request.mandate_id, request.mandate_version, mandate, amount,
                                request.currency, decision, cart_json=cart_json or request.model_dump_json(),
-                               page_source=page_source, agent_id=request.agent_id)
+                               page_source=page_source, agent_id=request.agent_id,
+                               shadow_json=json.dumps(shadow) if shadow else None)
         if decision.level == "block":
             return self._done("decision", self.store.update_payment(pid, status="blocked"))
         if decision.level == "ask_first":
@@ -178,13 +184,15 @@ class PaymentService:
         ai = json.loads(p["ai_json"]) if p.get("ai_json") else None
         return self.signer.sign({
             "receipt_version": 1, "issued_at": self.clock().isoformat(timespec="seconds"), "payment_id": pid,
-            "mandate": m.model_dump(mode="json") if m else None, "mandate_fingerprint": p["mandate_fingerprint"],
+            "mandate": json.loads(m.canonical_json()) if m else None,   # exactly what was hashed
+            "mandate_fingerprint": p["mandate_fingerprint"],
             "mandate_version": p["mandate_version"], "facts": json.loads(p["facts_json"]),
             "amount_cents": p["amount_cents"], "currency": p["currency"], "decision": p["level"],
             "status": p["status"],
             "reasons": [{"code": f["code"], "level": f["level"], "source": f.get("source", "rules")}
                         for f in json.loads(p["findings_json"])],
             "ai": {k: ai.get(k) for k in ("model", "latency_ms")} if ai and "model" in ai else ai,
+            **({"shadow": json.loads(p["shadow_json"])} if p.get("shadow_json") else {}),
             "paypal": {"order_id": p["paypal_order_id"], "authorization_id": p["paypal_authorization_id"],
                        "capture_id": p["paypal_capture_id"], "status": p["paypal_status"]},
             "paypal_custom_id": f"agentguard:{p['mandate_fingerprint']}" if p["paypal_order_id"] else None,
@@ -234,6 +242,7 @@ class PaymentService:
             "rules_fired": [f["code"] for f in json.loads(p["findings_json"])],
             "ai": json.loads(p["ai_json"]) if p.get("ai_json") else None, "agent_id": p.get("agent_id"),
             "page_source": p.get("page_source"),
+            **({"shadow": json.loads(p["shadow_json"])} if p.get("shadow_json") else {}),
             "paypal": {k: p[k] for k in ("paypal_order_id", "paypal_authorization_id", "paypal_capture_id",
                                          "paypal_status", "paypal_debug_id")}})
         return p

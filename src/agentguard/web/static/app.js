@@ -72,6 +72,10 @@
     return a.kind.replace(/_/g, " ");
   }
   function statusChip(st) { var s = STATUS[st] || ["neutral", st]; return '<span class="status ' + s[0] + '">' + esc(s[1]) + "</span>"; }
+  var WOULD = { hold: "held it for you", ask_first: "asked you first", block: "blocked it" };
+  function shadowChip(p) { var sh = p && p.shadow; if (!sh || sh.would_have === sh.applied) return "";
+    var shortW = { hold: "would hold", ask_first: "would ask", block: "would block" }[sh.would_have] || sh.would_have;
+    return ' <span class="status ask" title="Shadow mode: the full guard would have ' + esc(WOULD[sh.would_have] || sh.would_have) + '. Logged only, not enforced.">Shadow: ' + esc(shortW) + "</span>"; }
   function disputeChip(p) { return p && p.dispute ? ' <span class="status block" title="Evidence attached: mandate fingerprint + signed receipt">Disputed</span>' : ""; }
   function coinKind(st) { return { captured: "approve", held: "hold", awaiting_buyer: "hold", blocked: "block", declined: "block" }[st]; }
   function needsBuyer(p) { return p.status === "held" || p.status === "awaiting_buyer"; }
@@ -234,7 +238,8 @@
     var img = productImage(items[0] && items[0].title);
     if (img) h += '<div class="product-tile"><img class="product-img" src="' + esc(img) + '" alt="' + esc(items[0].title) + '" loading="lazy"></div>';
     if (rowsH) h += '<dl class="facts well">' + rowsH + "</dl>";
-    if (why) h += '<p class="hint">Why: ' + esc(why.reason) + "</p>";
+    if (why) h += '<p class="hint">' + (p.shadow && p.shadow.would_have !== p.shadow.applied ? "Shadow mode, logged only: AgentGuard would have " +
+      esc(WOULD[p.shadow.would_have] || p.shadow.would_have) + ". " : "Why: ") + esc(why.reason) + "</p>";
     h += '<p class="hint">Every fact above was checked by AgentGuard.</p>';
     if (p.agent_note) h += '<blockquote class="agent-says">The agent says, unverified: “' + esc(p.agent_note) + "”</blockquote>";
     if (needsBuyer(p)) {
@@ -312,7 +317,7 @@
 
   function initGrid() {
     var StatusCell = function () {};
-    StatusCell.prototype.init = function (params) { this.e = document.createElement("span"); this.e.innerHTML = statusChip(params.value) + disputeChip(params.data); };
+    StatusCell.prototype.init = function (params) { this.e = document.createElement("span"); this.e.innerHTML = statusChip(params.value) + shadowChip(params.data) + disputeChip(params.data); };
     StatusCell.prototype.getGui = function () { return this.e; };
     var ActCell = function () {};
     ActCell.prototype.init = function (params) {
@@ -364,12 +369,17 @@
     var body = $("detailBody"); body.innerHTML = '<span class="skeleton" style="display:block;width:60%"></span>';
     api("/api/payments/" + encodeURIComponent(id)).then(function (p) {
       var h = '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">' + statusChip(p.status) + '<span class="num" style="font-weight:600">' + esc(p.amount) + "</span></div>";
+      var sh = p.shadow, logged = (sh && sh.logged_only) || [];
+      if (sh) h += '<p class="hint">' + (sh.would_have === sh.applied ? "Shadow mode: nothing was only logged; the outcome is what enforce mode would do." :
+        "Shadow mode: the full guard would have " + esc(WOULD[sh.would_have] || sh.would_have) + ". Only the buyer’s hard limits act, so the reasons marked “Logged only” did not stop this payment.") + "</p>";
       h += '<h3 class="sub">Reasons</h3><ul class="check-list">';
       var fs = p.findings || [];
       if (!fs.length) h += "<li>Inside every rule the buyer set.</li>";
-      fs.forEach(function (f) { h += "<li>" + statusChip({ approve: "captured", hold: "held", ask_first: "awaiting_buyer", block: "blocked" }[f.level]) + " " +
+      fs.forEach(function (f) { var lo = logged.indexOf(f.code) >= 0;
+        h += "<li>" + (lo ? '<span class="status neutral">Would have ' + esc({ hold: "held", ask_first: "asked", block: "blocked" }[f.level] || f.level) + "</span>"
+          : statusChip({ approve: "captured", hold: "held", ask_first: "awaiting_buyer", block: "blocked" }[f.level])) + " " +
         esc(f.reason) + (f.would_pass_if ? '<div class="hint">Would pass if ' + esc(f.would_pass_if) + "</div>" : "") +
-        '<div class="hint">Found by: ' + esc(f.source || "rules") + "</div></li>"; });
+        '<div class="hint">Found by: ' + esc(f.source || "rules") + (lo ? " · Logged only (shadow mode)" : "") + "</div></li>"; });
       h += "</ul>";
       h += '<h3 class="sub">Timing</h3><dl class="facts">';
       (p.trace || []).forEach(function (t) { h += "<dt>" + esc(LAYER_NAMES[t.layer] || t.layer) + '</dt><dd class="num">' + (t.skipped ? "skipped" : esc(t.ms) + " ms") + "</dd>"; });
@@ -406,8 +416,19 @@
         '</dd><dt>Spent or held</dt><dd class="num">' + money((b.spent_cents || 0) + (b.reserved_cents || 0)) +
         '</dd><dt>Per item, up to</dt><dd class="num">' + money(md.max_item_price_cents) + "</dd><dt>How many of each</dt><dd>" + md.max_quantity_per_item +
         "</dd><dt>Kinds of item</dt><dd>" + esc(nice(md.allowed_categories)) + "</dd><dt>Shops</dt><dd>" + esc(shopNames(md.allowed_merchants)) +
-        "</dd><dt>Valid until</dt><dd>" + esc(day(md.expires_at)) + "</dd></dl>" +
+        "</dd><dt>Valid until</dt><dd>" + esc(day(md.expires_at)) + "</dd><dt>Mode</dt><dd>" +
+        (md.mode === "shadow" ? "Shadow: hard limits act, judgement checks are logged only" : "Enforce: every check acts") + "</dd></dl>" +
+        '<button class="btn" type="button" id="toggleMode">' + (md.mode === "shadow" ? "Switch to enforce mode" : "Try shadow mode") + "</button>" +
+        '<p class="hint">Shadow mode is for trying AgentGuard on real traffic before it acts: budget, shops, price cap, quantity, dates and address still block; the hidden-text, AI and price checks only record what they would have done.</p>' +
         '<p class="hint">Fingerprint <span class="num">' + esc(m.fingerprint.slice(0, 20)) + "…</span> goes into every PayPal order, so the rules can’t be changed after the fact.</p>";
+      $("toggleMode").addEventListener("click", function () {
+        var b = this; b.setAttribute("aria-busy", "true");
+        var next = Object.assign({}, current, { version: current.version + 1, mode: current.mode === "shadow" ? "enforce" : "shadow" });
+        api("/api/mandates", { method: "POST", body: { mandate: next } }).then(function () {
+          toast(next.mode === "shadow" ? "Shadow mode on (new rules version). Judgement checks are now logged only." : "Enforce mode on (new rules version). Every check acts again.");
+          loadRules();
+        }).catch(function (err) { toast(err.message); b.removeAttribute("aria-busy"); });
+      });
     }).catch(function (err) { $("activeRules").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
   }
   /* ------------------------------------------------------------ agent keys (M1) */

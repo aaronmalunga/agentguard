@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS payments (
   status TEXT NOT NULL, findings_json TEXT NOT NULL, facts_json TEXT NOT NULL, agent_note TEXT,
   paypal_order_id TEXT, paypal_authorization_id TEXT, paypal_capture_id TEXT, paypal_status TEXT,
   paypal_debug_id TEXT, ai_json TEXT, trace_json TEXT, cart_json TEXT, page_source TEXT, agent_id TEXT,
-  refunded_cents INTEGER NOT NULL DEFAULT 0, dispute_json TEXT,
+  refunded_cents INTEGER NOT NULL DEFAULT 0, dispute_json TEXT, shadow_json TEXT,
   created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
 CREATE TABLE IF NOT EXISTS paypal_events (
   event_id TEXT PRIMARY KEY, event_type TEXT NOT NULL, payment_id TEXT NOT NULL, received_at TEXT NOT NULL);
@@ -45,8 +45,9 @@ class Store:
         self._lock = threading.Lock()   # one writer at a time for SQLite; Postgres uses row locks instead
         self._db.executescript(SCHEMA)
         cols = {r["name"] for r in self._db.execute("PRAGMA table_info(payments)")}
-        for col, ddl in (("refunded_cents", "INTEGER NOT NULL DEFAULT 0"), ("dispute_json", "TEXT")):
-            if col not in cols:   # a file database created before 9 Nov
+        for col, ddl in (("refunded_cents", "INTEGER NOT NULL DEFAULT 0"), ("dispute_json", "TEXT"),
+                         ("shadow_json", "TEXT")):
+            if col not in cols:   # a file database created before 9 Nov (shadow_json: 10 Nov)
                 self._db.execute(f"ALTER TABLE payments ADD COLUMN {col} {ddl}")
 
     @contextmanager

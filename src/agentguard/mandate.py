@@ -5,6 +5,10 @@
   that applied (audit log, receipts, dispute evidence).
 - fingerprint() is a SHA-256 of the canonical JSON. It is what receipts sign and what goes in the PayPal order's
   custom_id (decision D2), so anyone can check the rules weren't changed after the fact.
+- mode (ADR-0010): "enforce" (default) or "shadow". In shadow mode the buyer's hard limits still block, but
+  AgentGuard's judgement checks (detector, AI, price and claim signals) are only logged as "would have asked/held".
+  The mode is part of the signed rules. "enforce" is left out of the fingerprint so mandates made before 10 Nov keep
+  the fingerprint already written into their PayPal orders and receipts.
 """
 
 import hashlib
@@ -51,6 +55,7 @@ class Mandate(BaseModel):
     valid_from: datetime
     expires_at: datetime
     status: Literal["active", "revoked"] = "active"
+    mode: Literal["enforce", "shadow"] = "enforce"
 
     @model_validator(mode="after")
     def consistent(self):
@@ -66,7 +71,10 @@ class Mandate(BaseModel):
         return self.status == "active" and self.valid_from <= now <= self.expires_at
 
     def canonical_json(self) -> str:
-        return json.dumps(self.model_dump(mode="json"), sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+        data = self.model_dump(mode="json")
+        if data["mode"] == "enforce":   # backward-compatible fingerprint (see module docstring)
+            del data["mode"]
+        return json.dumps(data, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
     def fingerprint(self) -> str:
         return hashlib.sha256(self.canonical_json().encode("utf-8")).hexdigest()
@@ -89,4 +97,4 @@ class Mandate(BaseModel):
             max_item_price_cents=to_cents(m["max_item_price"]), max_quantity_per_item=m["max_quantity_per_item"],
             allowed_categories=tuple(m["allowed_categories"]), allowed_merchants=tuple(m["allowed_merchants"]),
             ship_to=Address(**m["ship_to"]), valid_from=m["valid_from"], expires_at=m["expires_at"],
-            status=m["status"])
+            status=m["status"], mode=m.get("mode", "enforce"))

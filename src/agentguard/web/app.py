@@ -248,7 +248,7 @@ class State:
 def view(p: dict) -> dict:
     """A payment as the API shows it: JSON fields parsed, money formatted, whether PayPal was ever called."""
     out = {k: v for k, v in p.items() if not k.endswith("_json")}
-    for k in ("findings", "facts", "ai", "cart", "trace", "dispute"):
+    for k in ("findings", "facts", "ai", "cart", "trace", "dispute", "shadow"):
         raw = p.get(f"{k}_json")
         out[k] = json.loads(raw) if raw else None
     out["amount"] = fmt(p["amount_cents"])

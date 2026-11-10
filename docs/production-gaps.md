@@ -14,7 +14,7 @@ payments engineer pick apart?").
 | Receipt signing key | Held in the app's memory (ADR-0008) | AWS KMS; key rotation |
 | Keeping records true | Verified PayPal webhooks, forward-only state machine (ADR-0009) | Also a scheduled reconciliation job against PayPal, because webhooks can be late or lost |
 | Evidence | Synthetic attack catalogues; 40 pre-registered real-agent runs | An outside benchmark (licence checked) and an open red-team; real developer feedback |
-| Rollout | Enforce only | Shadow (watch) → advisory → enforce, so false blocks are measured on real traffic first |
+| Rollout | Enforce (default) or shadow per mandate (ADR-0010: hard limits act, judgement checks only logged) | Shadow → advisory → enforce per check, with false asks measured on real traffic before switching |
 | AI provider | One model, chosen by constraint (ADR-0006) | Provider comparison including cost per 1,000 checks; EU-compliant paid tier |
 
 ## v2 plan (after judging, in this order)
@@ -22,7 +22,7 @@ payments engineer pick apart?").
 0. **Design doc first.** One named customer (e.g. an agent platform whose users' agents buy from PayPal merchants),
    with requirements: p95 decision latency, availability, cost per 1,000 checks, EU users, tenants, and what happens
    when PayPal or the model is down. Every later choice traces back to it.
-1. **Make it usable:** durable storage, tenants and machine login, KMS signing key, reconciliation job, shadow mode.
+1. **Make it usable:** durable storage, tenants and machine login, KMS signing key, reconciliation job, advisory mode (shadow is built).
 2. **AWS because the requirements call for it:** CDK deployment, Bedrock as a second provider, the bake-off with
    cost per 1,000 checks, one trace showing where a decision's time goes.
 3. **Outside proof:** external benchmark or open red-team; three developer conversations with a fixed question list.
