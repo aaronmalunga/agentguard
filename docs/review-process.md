@@ -13,6 +13,15 @@ made, the way a sceptical judge, security reviewer or customer would. Started 5 
 5. **Record** it in the dated review file, the decision log, and (for numbers) METRICS.md. Pre-registered evaluation
    rules are never edited silently: changes go in `evaluation-plan.md` section 8 with date and reason.
 
+## Standing checks (every change of this kind)
+- **Any dependency change:** diff `uv.lock` for the core's own packages (above all `google-genai`, `fastapi`,
+  `paypal-server-sdk`) before pushing; an optional extra can change them for the whole project (10 Nov:
+  `strands-agents[gemini]` downgraded `google-genai` 3.0.0 → 2.34.0 on the live guard). Tools needed only for
+  experiments run in their own environment (`uv run --isolated --with …`).
+- **Any new claim:** it points to a test, a measured run, or an evidence file before it goes into README or Devpost.
+- **Any third-party API or data added:** read its terms first (benchmarks, caching, regions, training) and record
+  them in `docs/sources.md`.
+
 ## Log
 | Date | Review | Findings | Fixed same day | Decisions | Biggest change it caused |
 |---|---|---|---|---|---|

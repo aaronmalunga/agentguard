@@ -88,8 +88,10 @@ flowchart LR
    made on PayPal marks the payment "refunded outside AgentGuard" or "reversed" and gives the money back to the
    buyer's budget; a late or repeated event changes nothing. A buyer dispute flags the payment and attaches the
    mandate fingerprint and signed receipt as evidence (sending it to PayPal's Disputes API is roadmap). Event ID,
-   status change, budget change and log entry are saved in one database transaction. Refunds, reversals and
-   disputes are tested with PayPal's documented event formats; a live sandbox refund check is pending.
+   status change, budget change and log entry are saved in one database transaction. Live sandbox check (10 Nov):
+   a $10 refund and then an $88 refund, made in PayPal's dashboard on a $98 capture, moved the payment to
+   "partially refunded" and then "refunded", each notice verified by PayPal (4 verified, 0 rejected). Reversals
+   and disputes are tested with PayPal's documented event formats only.
 
 **Rules that keep the AI in its place:** the AI can only make a decision *more* cautious, never less. Any AI error or
 timeout means "ask the buyer". The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.

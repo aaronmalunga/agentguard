@@ -299,3 +299,8 @@ Every significant decision, pivot and correction, newest first. Real architectur
 
 - 2026-10-14 · ADR-0006: LLM provider-agnostic; model chosen by pre-registered bake-off (Gemini / OpenAI / Anthropic, direct accounts); Bedrock on AWS deploy.
 - 2026-10-14 · Spike v2: approvals expire before 3-day honour period → auto-void (D2); refund guard adds only what PayPal doesn't enforce (D3); agent never uses toolkit create_order, which hard-codes CAPTURE (D4); catch before capture: void = $0 fee, refund = fee lost (D5).
+## 10 Nov 2026 (late afternoon): live refund check passed
+- **What:** on the live site, purchase `pay_95f9ebd6f07e40b4` ($98, capture `5E914626V1971323N`). Aaron refunded $10, then $88, in PayPal's sandbox dashboard.
+- **Result:** each `PAYMENT.CAPTURE.REFUNDED` was verified by PayPal and moved the status captured → partially_refunded → refunded; the budget got $98 back; webhook counts 4 verified / 0 duplicate / 0 rejected / 0 unmatched; audit chain verifies (6 entries).
+- **Still open:** an earlier test purchase (16:29 SA) was missing 11 minutes later. Cause not established (a session reset during the test steps vs a server restart). Not a refund issue; watch it during the video recording.
+- **Updated:** README limits line and threat-model R2 no longer say "pending".
