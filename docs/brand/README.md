@@ -2,7 +2,7 @@
 
 | File | What it is |
 |---|---|
-| `banner.png` | README banner, 2560 × 840 (shown at 1280 × 420). Made 10 Nov from `banner-source.html` |
+| `banner.webp` | README banner, WebP (80 KB), 2560 × 840 (shown at 1280 × 420). Made 10 Nov from `banner-source.html` |
 | `banner-source.html` | Source of the banner (HTML + CSS, site fonts embedded). Re-render with any headless browser at 2× scale |
 | `emblem-transparent.png` | The AgentGuard shield cut out of its grey background, transparent PNG (216 × 266) |
 

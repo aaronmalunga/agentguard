@@ -1,4 +1,4 @@
-<p align="center"><img src="docs/brand/banner.png" alt="AgentGuard: PayPal moves the money. AgentGuard checks you meant it. Built on PayPal: Orders v2, Vault, verified webhooks, Gemini AI check. Spending controls for AI shopping agents, PayPal AI Hackathon 2026, sandbox only." width="100%"></p>
+<p align="center"><img src="docs/brand/banner.webp" alt="AgentGuard: PayPal moves the money. AgentGuard checks you meant it. Built on PayPal: Orders v2, Vault, verified webhooks, Gemini AI check. Spending controls for AI shopping agents, PayPal AI Hackathon 2026, sandbox only." width="100%"></p>
 
 # AgentGuard — agent spending controls, built on PayPal
 
