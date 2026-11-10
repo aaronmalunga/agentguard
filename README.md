@@ -23,7 +23,7 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 ---
 
 ## Contents
-[The problem](#the-problem) · [Try it](#try-it-in-two-minutes) · [Connect a real agent](#connect-a-real-agent-mcp) ·
+[The problem](#the-problem) · [How it's different](#how-agentguard-is-different) · [Try it](#try-it-in-two-minutes) · [Connect a real agent](#connect-a-real-agent-mcp) ·
 [How it works](#how-it-works) · [PayPal APIs](#the-paypal-apis-and-what-each-one-decides) ·
 [Results](#results-measured-not-estimated) · [Check the evidence yourself](#check-the-evidence-yourself) ·
 [Architecture](#architecture) · [Run it locally](#run-it-locally) · [Security](#security-and-abuse-limits) ·
@@ -43,6 +43,20 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 
 - Voiding a held payment cost **$0.00**.
 - Capturing and then refunding a $40.00 payment lost the **$1.53** fee (US sandbox; live fees vary).
+
+## How AgentGuard is different
+
+**Spending limits stop *how much* an agent spends. AgentGuard checks *whether the buyer meant it*, before money moves
+on PayPal.**
+
+- **It catches what limits can't, and we measured it.** On 75 attacks that stay inside the spending limits, rules
+  alone caught 0; with AI, 71. 0 of 42 good purchases were blocked.
+- **Tested with a real AI agent, plan fixed in advance, misses published.** 0 harmful payments in 34 completed runs;
+  what we didn't measure is stated.
+- **The shop's records and market prices, never the agent's word.** When the agent lied about a price it was caught
+  5 of 5 times; Channel3 market prices flag overpricing.
+- **Built to be adopted.** An MCP server whose four tools can't move money, shadow mode to try it safely, and
+  PayPal's hold-then-void, so saying "no" costs $0.00 instead of a $1.53 refund fee.
 
 ## Try it in two minutes
 
