@@ -310,3 +310,8 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Options considered:** (a) keep improving `main` after submission; (b) work on a `v2` branch during judging; (c) full freeze until results.
 - **Trade-offs:** (c) loses ~5 weeks of build time, but protects the exam, keeps the judged version exactly as submitted (Devpost rules s.5) and keeps the hosted demo stable for judges.
 - **After results:** tag `v1.0-hackathon`, then v2 (AWS + Bedrock with IaC, provider bake-off, OpenTelemetry, contract tests, Disputes API, evaluation notebook, case study) and a separate portfolio video. The hackathon video is never replaced.
+
+## 10 Nov 2026 (evening): why demo purchases disappeared (found)
+- **Cause:** every push to `main` redeploys Render; demo sessions are in-memory SQLite, so a redeploy wipes them. Evidence: after pushes `6966aa7` and `03b77ee` the live site had 0 payments and all webhook counts at 0 (counts are process-wide, so they only reset on a restart).
+- **Decision:** no storage change before submission (Render free has no persistent disk; a rebuild two days before the deadline is the larger risk). Instead: footer note on the page, README limitation linked to `docs/production-gaps.md`, refund check preserved in `evidence/live_checks/`. After submission there are no pushes (freeze), so judges only lose data on a platform restart.
+- **Also added:** `docs/production-gaps.md` (demo vs production table and v2 plan) from the recruiter/payments-engineer review.

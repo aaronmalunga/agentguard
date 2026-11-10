@@ -213,8 +213,11 @@ with the APIMatic PayPal Server SDK Context Plugin for accurate PayPal SDK usage
 - **Sandbox and synthetic data.** The attack catalogues are ours (written from published attack research), so the
   results show the mechanism works, not real-world rates.
 - **Mandates are AP2-style**, not the full AP2 protocol with verifiable credentials.
-- **The demo forgets on restart.** The free host sleeps when idle and the demo's log is kept in memory. Receipts still
-  carry their chain position and the PayPal order's `custom_id`; persistent storage is the production step.
+- **The demo forgets on restart.** Demo data is kept in memory, so a restart or redeploy wipes it (the 10 Nov live
+  refund check is kept in [evidence](evidence/live_checks/2026-11-10_refund_outside_agentguard.md) for that reason).
+  Receipts still carry their chain position and the PayPal order's `custom_id`. What a real deployment would add
+  (durable storage, tenants, KMS key, reconciliation, shadow mode) is listed in
+  [docs/production-gaps.md](docs/production-gaps.md).
 - **The demo agent is scripted**, so each scenario behaves the same every time. Real agents send real requests
   through the same API.
 - **Held payments don't expire yet.** Auto-voiding before PayPal's 3-day honour period is designed (D2), not built.
