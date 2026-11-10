@@ -195,7 +195,9 @@
   }
 
   function marketStep(p, t) {
-    if (!t) return "";
+    var pf0 = (p.findings || []).filter(function (f) { return f.code === "price_above_reference"; })[0];
+    if (!t && !pf0) return "";
+    t = t || { ms: 0, checks: [{ live: false }] };
     var c = (t.checks || [])[0], ms = t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms", text, extra = "";
     if (c && c.live) {
       text = c.offers >= 3 ? "Usually " + money(c.median_cents) + ", the middle price across " + c.offers + " shops" +
@@ -205,14 +207,17 @@
       extra = '<div class="ai-line">Channel3 product catalogue' + (c.cached ? ", checked in the last 15 minutes" : ", checked now") + "</div>";
       if (c.cached) ms = "cached";
     } else { text = "Channel3 didn’t answer in time, so AgentGuard used the shop’s stored reference price"; }
-    return '<li><span class="mark ok" aria-label="checked">✓</span><div><div class="step-layer">Market price</div><div class="step-text">' +
+    var pf = (p.findings || []).filter(function (f) { return f.code === "price_above_reference"; })[0];   // a price warning shows here, on the step that found it
+    var mk = pf ? MARK[pf.level] : ["ok", "✓"], label = pf ? pf.level.replace("_", " ") : "checked";
+    if (pf) text = pf.reason;
+    return '<li><span class="mark ' + mk[0] + '" aria-label="' + esc(label) + '">' + mk[1] + '</span><div><div class="step-layer">Market price</div><div class="step-text">' +
       esc(text) + "</div>" + extra + '</div><span class="step-ms num">' + esc(ms) + "</span></li>";
   }
 
   function stepFor(p, L) {
     var t = (p.trace || []).filter(function (x) { return x.layer === L[0]; })[0];
     if (L[0] === "market") return marketStep(p, t);
-    var fs = (p.findings || []).filter(function (f) { return (f.source || "rules") === L[0]; });
+    var fs = (p.findings || []).filter(function (f) { return f.code !== "price_above_reference" && (f.source || "rules") === L[0]; });
     fs.sort(function (a, b) { return RANK[b.level] - RANK[a.level]; });
     var level = fs.length ? fs[0].level : "approve", text = fs.length ? fs[0].reason : L[2];
     var ms = t ? (t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms") : "";
@@ -224,7 +229,7 @@
       else if (ai.model) {
         var rec = ai.provider && ai.provider.indexOf("recorded") === 0;
         ms = Math.round(ai.latency_ms).toLocaleString() + " ms";
-        extra = '<div class="ai-line">' + esc(ai.model) + (rec ? " · replay of a real answer " + esc(ai.provider) : " · live answer") + "</div>";
+        extra = '<div class="ai-line" title="' + esc(ai.model) + '">Gemini AI' + (rec ? " · saved answer from a real check on " + esc(dayOf(ai.provider)) : " · live answer") + "</div>";
       }
     }
     if (fs.length > 1) text += " (+" + (fs.length - 1) + " more)";
@@ -361,7 +366,11 @@
     f.sort(function (a, b) { return RANK[b.level] - RANK[a.level]; }); return f.length ? f[0].reason : "Inside the buyer’s rules"; }
   function itemsOf(p) { return ((p.facts || {}).items || []).map(function (i) { return i.title; }).join(", ") || "Nothing the shop sells"; }
   function aiOf(p) { var a = p.ai || {}; if (!a.model) return (p.trace || []).some(function (t) { return t.skipped; }) ? "Not needed" : "Unavailable";
-    return a.model + ", " + Math.round(a.latency_ms) + " ms" + (a.provider && a.provider.indexOf("recorded") === 0 ? " (recorded)" : ""); }
+    return "Gemini, " + (a.latency_ms / 1000).toFixed(1) + " s" + (a.provider && a.provider.indexOf("recorded") === 0 ? " (saved answer)" : ""); }
+  function dayOf(provider) { var m = /(\d{4})-(\d{2})-(\d{2})/.exec(provider || ""); if (!m) return provider || "";
+    return +m[3] + " " + ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"][+m[2] - 1]; }
+  var SOURCE_WORDS = { rules: "the buyer’s rules", catalogue: "the shop’s records", detector: "the page check", ai: "the AI check", market: "the market price check" };
+  function fmtMs(x) { return x < 1 ? "under 1 ms" : Math.round(x).toLocaleString() + " ms"; }
 
   var STATUS_GROUPS = { needs: ["held", "awaiting_buyer"], blocked: ["blocked", "declined"], captured: ["captured", "partially_refunded", "refunded", "reversed"], voided: ["voided", "rejected"] };
 
@@ -429,17 +438,18 @@
         h += "<li>" + (lo ? '<span class="status neutral">Would have ' + esc({ hold: "held", ask_first: "asked", block: "blocked" }[f.level] || f.level) + "</span>"
           : statusChip({ approve: "captured", hold: "held", ask_first: "awaiting_buyer", block: "blocked" }[f.level])) + " " +
         esc(f.reason) + (f.would_pass_if ? '<div class="hint">Would pass if ' + esc(f.would_pass_if) + "</div>" : "") +
-        '<div class="hint">Found by: ' + esc(f.source || "rules") + (lo ? " · Logged only (shadow mode)" : "") + "</div></li>"; });
+        '<div class="hint">Found by ' + esc(f.code === "price_above_reference" ? SOURCE_WORDS.market : (SOURCE_WORDS[f.source || "rules"] || f.source)) + (lo ? " · Logged only (shadow mode)" : "") + "</div></li>"; });
       h += "</ul>";
-      h += '<h3 class="sub">Timing</h3><dl class="facts">';
-      (p.trace || []).forEach(function (t) { h += "<dt>" + esc(LAYER_NAMES[t.layer] || t.layer) + '</dt><dd class="num">' + (t.skipped ? "skipped" : esc(t.ms) + " ms") + "</dd>"; });
-      if (p.ai && p.ai.model) h += "<dt>AI model</dt><dd>" + esc(p.ai.model) + (p.ai.provider && p.ai.provider.indexOf("recorded") === 0 ? " (" + esc(p.ai.provider) + ")" : "") + "</dd>";
+      h += '<h3 class="sub">How long each check took</h3><dl class="facts">';
+      (p.trace || []).forEach(function (t) { h += "<dt>" + esc(LAYER_NAMES[t.layer] || t.layer) + '</dt><dd class="num">' + (t.skipped ? "not needed" : esc(fmtMs(t.ms))) + "</dd>"; });
+      if (p.ai && p.ai.model) h += '<dt>AI</dt><dd title="' + esc(p.ai.model) + '">Gemini' + (p.ai.provider && p.ai.provider.indexOf("recorded") === 0 ? ", saved answer from " + esc(dayOf(p.ai.provider)) : ", live") + "</dd>";
       h += '</dl><h3 class="sub">PayPal</h3><dl class="facts">' +
-        "<dt>Called</dt><dd>" + (p.paypal_called ? "Yes" : "No") + "</dd><dt>Order</dt><dd>" + esc(p.paypal_order_id || "none") + "</dd>" +
-        "<dt>Authorisation</dt><dd>" + esc(p.paypal_authorization_id || "none") + "</dd><dt>Capture</dt><dd>" + esc(p.paypal_capture_id || "none") + "</dd>" +
-        "<dt>Status</dt><dd>" + esc(p.paypal_status || "none") + "</dd></dl>";
-      h += '<h3 class="sub">Signed log entries</h3><ul class="check-list">';
-      (p.audit || []).forEach(function (a) { h += '<li class="num">#' + a.seq + " " + esc(auditLabel(a)) + ' <span class="hint">' + esc(a.hash.slice(0, 16)) + "…</span></li>"; });
+        "<dt>Called</dt><dd>" + (p.paypal_called ? "Yes" : "No, nothing reached PayPal") + "</dd>" +
+        (p.paypal_called ? "<dt>Order</dt><dd>" + esc(p.paypal_order_id || "none") + "</dd>" +
+        "<dt>Hold (authorisation)</dt><dd>" + esc(p.paypal_authorization_id || "none") + "</dd><dt>Payment (capture)</dt><dd>" + esc(p.paypal_capture_id || "not taken") + "</dd>" +
+        "<dt>PayPal status</dt><dd>" + esc(p.paypal_status || "none") + "</dd>" : "") + "</dl>";
+      h += '<h3 class="sub">In the tamper-proof log</h3><ul class="check-list">';
+      (p.audit || []).forEach(function (a) { h += '<li title="Entry ' + a.seq + ", hash " + esc(a.hash.slice(0, 16)) + '…">' + esc(auditLabel(a).charAt(0).toUpperCase() + auditLabel(a).slice(1)) + "</li>"; });
       h += "</ul>";
       if (p.agent_note) h += '<blockquote class="agent-says">The agent says, unverified: “' + esc(p.agent_note) + "”</blockquote>";
       h += '<button class="btn primary" type="button" id="getReceipt">Get receipt</button>';
@@ -462,15 +472,15 @@
       if (!m) { $("activeRules").innerHTML = '<div class="empty">No rules yet. Draft some on the left.</div>'; return; }
       current = m.mandate; var b = m.budget || {}, md = m.mandate;
       $("activeRules").innerHTML = '<p style="font-size:17px">“' + esc(md.buyer_instruction) + '”</p><dl class="facts well">' +
-        "<dt>Version</dt><dd>" + md.version + '</dd><dt>Budget</dt><dd class="num">' + money(md.budget_total_cents) +
+        '<dt>Budget</dt><dd class="num">' + money(md.budget_total_cents) +
         '</dd><dt>Spent or held</dt><dd class="num">' + money((b.spent_cents || 0) + (b.reserved_cents || 0)) +
         '</dd><dt>Per item, up to</dt><dd class="num">' + money(md.max_item_price_cents) + "</dd><dt>How many of each</dt><dd>" + md.max_quantity_per_item +
         "</dd><dt>Kinds of item</dt><dd>" + esc(nice(md.allowed_categories)) + "</dd><dt>Shops</dt><dd>" + esc(shopNames(md.allowed_merchants)) +
         "</dd><dt>Valid until</dt><dd>" + esc(day(md.expires_at)) + "</dd><dt>Mode</dt><dd>" +
         (md.mode === "shadow" ? "Shadow: hard limits act, judgement checks are logged only" : "Enforce: every check acts") + "</dd></dl>" +
         '<button class="btn" type="button" id="toggleMode">' + (md.mode === "shadow" ? "Switch to enforce mode" : "Try shadow mode") + "</button>" +
-        '<p class="hint">Shadow mode is for trying AgentGuard on real traffic before it acts: budget, shops, price cap, quantity, dates and address still block; the hidden-text, AI and price checks only record what they would have done.</p>' +
-        '<p class="hint">Fingerprint <span class="num">' + esc(m.fingerprint.slice(0, 20)) + "…</span> goes into every PayPal order, so the rules can’t be changed after the fact.</p>";
+        '<p class="hint">Shadow mode lets a shop try AgentGuard before it starts stopping payments. Your limits still apply; the other checks only note what they would have done.</p>' +
+        '<p class="hint" title="Fingerprint ' + esc(m.fingerprint.slice(0, 20)) + '…">These rules are sealed: every PayPal order carries their fingerprint, so they can’t be changed after the fact.</p>';
       $("toggleMode").addEventListener("click", function () { this.setAttribute("aria-busy", "true"); setMode(current.mode === "shadow" ? "enforce" : "shadow"); });
     }).catch(function (err) { $("activeRules").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
   }
@@ -545,7 +555,6 @@
   function pct(x) { return x == null ? "n/a" : (x * 100).toFixed(1) + "%"; }
   function loadProof() {
     if (lastReceipt && !$("receiptText").value) $("receiptText").value = JSON.stringify(lastReceipt, null, 2);
-    api("/api/receipts/public-key").then(function (k) { $("keyLine").textContent = "Signing key " + k.key_id + (k.ephemeral ? " (made at start-up; demo only)" : "") + ", Ed25519."; });
     if (proofData) { drawProof(); return; }
     api("/api/proof").then(function (d) { proofData = d; drawProof(); })
       .catch(function (err) { $("figures").innerHTML = '<div class="error-box">' + esc(err.message) + "</div>"; });
@@ -555,13 +564,13 @@
     if (v3) {
       var r = v3.configs.rules_only, a = v3.configs["rules+detector+ai"];
       $("figures").innerHTML =
-        '<div><span class="fig">' + r.caught + " → " + a.caught + "<small> of " + a.attacks + "</small></span><p>in-limit attacks caught, rules alone versus rules with AI (test set " + esc(v3.set) + ")</p></div>" +
+        '<div><span class="fig">' + r.caught + " → " + a.caught + "<small> of " + a.attacks + "</small></span><p>attacks caught that stay inside the spending limits: rules alone, then rules with AI</p></div>" +
         '<div><span class="fig">' + a.false_blocks + "<small> of " + a.benign + "</small></span><p>good purchases wrongly blocked on the same set</p></div>" +
         '<div><span class="fig">$0.00<small> vs $' + (fee.refund_fee_lost_cents / 100).toFixed(2) + "</small></span><p>cost of saying no to a held $" + (fee.capture_cents / 100).toFixed(0) +
         " payment, versus refunding it after capture, in the PayPal sandbox</p></div>";
     }
     var chips = $("setChips"); chips.innerHTML = "";
-    sets.forEach(function (s) { var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = "Test set " + s.set;
+    sets.forEach(function (s) { var b = document.createElement("button"); b.type = "button"; b.className = "chip"; b.textContent = ({ v3: "Main test", v2: "Harder test" }[s.set] || "Test " + s.set) + " (" + ((s.configs["rules+detector+ai"] || s.configs.rules_only || {}).attacks || "?") + " attacks)"; b.title = "Test set " + s.set;
       b.setAttribute("aria-pressed", s.set === proofSet ? "true" : "false"); b.addEventListener("click", function () { proofSet = s.set; drawProof(); }); chips.appendChild(b); });
     var s = sets.filter(function (x) { return x.set === proofSet; })[0]; if (!s) return;
     var names = { "rules_only": "Rules only", "rules+detector": "Rules + page check", "rules+detector+ai": "Rules + page check + AI" };
@@ -570,8 +579,9 @@
       return '<div class="bar-row"><span>' + names[k] + '</span><div class="bar-track" role="img" aria-label="' + c.caught + " of " + c.attacks + ' caught"><div class="bar-fill" style="transform:scaleX(' + w.toFixed(4) + ')"></div></div><span class="val">' +
         c.caught + " / " + c.attacks + "</span></div>"; }).join("");
     var ai = (s.configs["rules+detector+ai"] || {}).ai || {};
-    $("barsNote").textContent = "Frozen at commit " + s.frozen_at_commit + ", run " + (s.run_at || "").slice(0, 10) + ", " + (s.synthetic ? "synthetic data" : "real data") +
-      ". AI " + (ai.model || "") + ", median " + (ai.latency_ms_p50 || "?") + " ms. Catch with AI " + pct((s.configs["rules+detector+ai"] || {}).catch_rate) + ". Source: " + s.file + ".";
+    $("barsNote").textContent = "Test run on " + dayOf(s.run_at) + " " + (s.run_at || "").slice(0, 4) + (s.synthetic ? ", made-up test data" : "") +
+      ". The AI check took about " + ((ai.latency_ms_p50 || 0) / 1000).toFixed(1) + " s on a typical payment.";
+    $("barsNote").title = "Frozen at commit " + s.frozen_at_commit + "; source " + s.file + "; AI " + (ai.model || "") + "; catch with AI " + pct((s.configs["rules+detector+ai"] || {}).catch_rate);
   }
   function verify(doc) {
     return api("/api/receipts/verify", { method: "POST", body: doc }).then(function (r) {
@@ -580,16 +590,26 @@
         Object.keys(names).filter(function (k) { return k in c; }).map(function (k) { return "<li>" + (c[k] ? "✓ " : "✕ ") + names[k] + "</li>"; }).join("") + "</ul>";
     });
   }
-  function readReceipt() { try { return JSON.parse($("receiptText").value); } catch (e) { toast("That isn’t valid JSON."); return null; } }
-  $("verifyBtn").addEventListener("click", function () { var d = readReceipt(); if (d) verify(d).catch(function (e) { toast(e.message); }); });
+  function readReceipt() { try { return JSON.parse($("receiptText").value); } catch (e) { toast("That doesn’t look like a receipt."); return null; } }
+  function receiptToCheck() {   // the pasted one, else the latest payment's receipt
+    if ($("receiptText").value.trim()) { var d = readReceipt(); return d ? Promise.resolve(d) : Promise.reject(new Error("")); }
+    return api("/api/payments").then(function (ps) {
+      var p = ps.filter(function (x) { return x.paypal_order_id; })[0] || ps[0];
+      if (!p) throw new Error("No payments yet. Run a scenario on the Shop page first.");
+      return api("/api/payments/" + p.id + "/receipt");
+    }).then(function (d) { $("receiptText").value = JSON.stringify(d, null, 2); return d; });
+  }
+  $("verifyBtn").addEventListener("click", function () { receiptToCheck().then(verify).catch(function (e) { if (e.message) toast(e.message); }); });
   $("tamperBtn").addEventListener("click", function () {
-    var d = readReceipt(); if (!d || !d.receipt) return;
-    d.receipt.amount_cents = (d.receipt.amount_cents || 0) + 100; $("receiptText").value = JSON.stringify(d, null, 2);
-    verify(d).then(function () { toast("Added $1.00 to the amount. The signature no longer matches."); });
+    receiptToCheck().then(function (d) {
+      if (!d || !d.receipt) return;
+      d.receipt.amount_cents = (d.receipt.amount_cents || 0) + 1; $("receiptText").value = JSON.stringify(d, null, 2);
+      return verify(d).then(function () { toast("Changed the amount by 1 cent. The signature no longer matches."); });
+    }).catch(function (e) { if (e.message) toast(e.message); });
   });
   $("chainBtn").addEventListener("click", function () {
     api("/api/audit/verify").then(function (r) {
-      $("chainOut").innerHTML = r.ok ? '<p style="font-weight:600;color:var(--approve)">Intact: ' + r.checked + ' entries</p><p class="hint num">Head ' + esc((r.head || "").slice(0, 24)) + "…</p>"
+      $("chainOut").innerHTML = r.ok ? '<p style="font-weight:600;color:var(--approve)" title="Head ' + esc((r.head || "").slice(0, 24)) + '…">Intact: all ' + r.checked + ' entries check out</p>'
         : '<p style="font-weight:600;color:var(--block)">Broken at entry ' + r.first_bad_seq + "</p>";
     }).catch(function (e) { toast(e.message); });
   });
