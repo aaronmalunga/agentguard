@@ -3,6 +3,21 @@
 Every significant decision, pivot and correction, newest first. Real architectural decisions also get an
 [ADR](adr/). Format: **date — decision** · why · what changed.
 
+## 10 Nov 2026 — Dependency regression caught: the agent library downgraded the guard's Gemini client
+
+- **What happened:** adding `strands-agents[gemini]` as a project extra (`ef7e83e`) made uv resolve one version for
+  the whole lock: `google-genai` 3.0.0 → **2.34.0**. Render installs from the lock, so the **live guard ran on
+  2.34.0 from about 11:50 to this fix**. Same model; but a live AI check took 6.2 s against the usual 1–1.5 s,
+  consistent with the older client not applying our minimal-thinking setting (inference, not verified).
+  All published results (v2, v3, held-out) were measured on 3.0.0.
+- **Caught by:** Aaron noticing `- google-genai==3.0.0` while the agent experiment was installing; lock diff confirmed.
+- **Fix:** `uv.lock` restored to the last measured state + MCP only (diff: 0 changed, 0 removed, 11 added, all
+  MCP's own dependencies). Strands now runs in its own environment (`uv run --isolated … --with
+  "strands-agents[gemini]"`), so the agent's needs can never change the guard again. Agent experiment restarted
+  after the fix; the first, aborted lines (guard on 2.34.0) are kept and labelled, never mixed into results.
+- **Lesson / fundamental:** one lock file = one dependency graph; an optional extra can still change the core's
+  versions. Check `uv.lock` diffs for the core's packages on every dependency change (added to review checklist).
+
 ## 10 Nov 2026 — Pressure test of the MCP adapter against PayPal's toolkit (before any agent run)
 
 - Checked against `github.com/paypal/agent-toolkit` (commit `a3aa963`, 1 Sep 2026): its order tools are

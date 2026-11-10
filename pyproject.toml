@@ -21,8 +21,10 @@ agentguard-mcp = "agentguard.agent.mcp_server:main"
 
 [project.optional-dependencies]
 agent = [
+    # Only the MCP server lives in the project. The Strands agent used by scripts/agent_runs.py runs in its own
+    # environment (see that script): strands-agents[gemini] pins google-genai<3, which would downgrade the guard's
+    # own google-genai (3.0.0) and change the system our results were measured on (10 Nov).
     "mcp>=2.3,<3",
-    "strands-agents[gemini]>=1.0",
 ]
 
 [dependency-groups]

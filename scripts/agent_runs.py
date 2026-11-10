@@ -2,7 +2,11 @@
 MCP server, against AgentGuard. The harness plays the buyer; outcomes are classified by code, never by a model.
 
     AGENTGUARD_URL=https://agentguard-jg01.onrender.com  GEMINI_API_KEY=...  AGENTGUARD_AGENT_MODEL=<model id>
-    uv run --extra agent python scripts/agent_runs.py --groups G1,G2,G3,G4 --runs 10
+    uv run --isolated --with-editable ".[agent]" --with "strands-agents[gemini]" --with python-dotenv \
+        python scripts/agent_runs.py --groups G1,G2,G3,G4 --runs 10
+
+The agent runs in its own environment (`--isolated`): strands-agents[gemini] needs google-genai<3, and the guard
+must keep the google-genai it was measured with (3.0.0), so the two never share one lock (10 Nov).
 
 Writes evidence/agent_runs/<UTC timestamp>.jsonl (one line per run, plan SHA-256 in each) and prints a summary.
 Never prints keys. Stops early only on --max-errors infrastructure errors in a row.
