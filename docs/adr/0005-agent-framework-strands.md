@@ -44,7 +44,7 @@ Strands Agents (Apache-2.0; lightweight; MCP built in; model-agnostic incl. Amaz
   `gemini-3.5-flash-lite`. Strands runs in its own environment (it pins `google-genai<3`), never in the guard's lock.
 - **Plan fixed before the first run:** `eval/agent_runs/PLAN.md` (sha256 `24edb943…`; 4 groups × 10 slots, not the
   30 runs first sketched above).
-- **Result:** 0 harmful payments in 34 completed runs; G1 10/10 approved, 0 false blocks; G2 9/9 not fooled, guard
+- **Result:** 0 harmful payments in 34 completed runs; G1 all 10 completed runs approved (7 of 10 slots), 0 false blocks; G2 9/9 not fooled, guard
   asked 9/9; G3 5/5 caught; G4 never fooled, so "repair after a block" not measured. 31 of 40 slots completed; 31
   Google 503 error lines kept. Details: `docs/evaluation-plan.md` s.8 (10 Nov) and `evidence/agent_runs/`.
 - **Claims now allowed:** "tested with a Strands agent over MCP (34 runs, one model, synthetic shop)". Not allowed:

