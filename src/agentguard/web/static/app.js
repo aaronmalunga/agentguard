@@ -76,7 +76,7 @@
   var CODE_WORDS = { hidden_instruction: "hidden instruction on the page", ai_page_steering: "page steering the agent",
     ai_page_instruction_seen: "AI saw a page instruction", ai_followed_page_instruction: "agent followed the page",
     ai_cart_mismatch: "cart not what was asked", cart_differs_on_manipulated_page: "cart changed by the page",
-    price_above_reference: "price above usual", agent_price_differs: "agent misreported the price",
+    price_above_reference: "price above usual", listing_mismatch: "listing isn’t the real product", agent_price_differs: "agent misreported the price",
     agent_title_differs: "agent misdescribed the item", recipient_changed: "recipient name changed",
     page_too_long_to_check: "page too long to check", ai_unavailable: "AI check unavailable" };
   var MID = "thandi-earbuds";
@@ -208,16 +208,21 @@
       if (c.cached) ms = "cached";
     } else { text = "Channel3 didn’t answer in time, so AgentGuard used the shop’s stored reference price"; }
     var pf = (p.findings || []).filter(function (f) { return f.code === "price_above_reference"; })[0];   // a price warning shows here, on the step that found it
-    var mk = pf ? MARK[pf.level] : ["ok", "✓"], label = pf ? pf.level.replace("_", " ") : "checked";
+    var lf = (p.findings || []).filter(function (f) { return f.code === "listing_mismatch"; })[0];   // product identity (11 Nov)
+    var top = lf && (!pf || RANK[lf.level] >= RANK[pf.level]) ? lf : pf;
+    var mk = top ? MARK[top.level] : ["ok", "✓"], label = top ? top.level.replace("_", " ") : "checked";
     if (pf) text = pf.reason;
-    return '<li><span class="mark ' + mk[0] + '" aria-label="' + esc(label) + '">' + mk[1] + '</span><div><div class="step-layer">Market price</div><div class="step-text">' +
+    if (lf) text = lf.reason + (pf ? " " + pf.reason : "");
+    else if (c && c.live && c.listing_match === true) extra = '<div class="ai-line">Same product as Channel3’s record: ' + esc(c.c3_title || "") + "</div>" + extra;
+    return '<li><span class="mark ' + mk[0] + '" aria-label="' + esc(label) + '">' + mk[1] + '</span><div><div class="step-layer">Market price and product</div><div class="step-text">' +
       esc(text) + "</div>" + extra + '</div><span class="step-ms num">' + esc(ms) + "</span></li>";
   }
 
+  var MARKET_CODES = ["price_above_reference", "listing_mismatch"];   // shown on the Channel3 step
   function stepFor(p, L) {
     var t = (p.trace || []).filter(function (x) { return x.layer === L[0]; })[0];
     if (L[0] === "market") return marketStep(p, t);
-    var fs = (p.findings || []).filter(function (f) { return f.code !== "price_above_reference" && (f.source || "rules") === L[0]; });
+    var fs = (p.findings || []).filter(function (f) { return MARKET_CODES.indexOf(f.code) < 0 && (f.source || "rules") === L[0]; });
     fs.sort(function (a, b) { return RANK[b.level] - RANK[a.level]; });
     var level = fs.length ? fs[0].level : "approve", text = fs.length ? fs[0].reason : L[2];
     var ms = t ? (t.ms < 1 ? "under 1 ms" : Math.round(t.ms).toLocaleString() + " ms") : "";
@@ -438,7 +443,7 @@
         h += "<li>" + (lo ? '<span class="status neutral">Would have ' + esc({ hold: "held", ask_first: "asked", block: "blocked" }[f.level] || f.level) + "</span>"
           : statusChip({ approve: "captured", hold: "held", ask_first: "awaiting_buyer", block: "blocked" }[f.level])) + " " +
         esc(f.reason) + (f.would_pass_if ? '<div class="hint">Would pass if ' + esc(f.would_pass_if) + "</div>" : "") +
-        '<div class="hint">Found by ' + esc(f.code === "price_above_reference" ? SOURCE_WORDS.market : (SOURCE_WORDS[f.source || "rules"] || f.source)) + (lo ? " · Logged only (shadow mode)" : "") + "</div></li>"; });
+        '<div class="hint">Found by ' + esc(f.code === "listing_mismatch" ? "the Channel3 product check" : f.code === "price_above_reference" ? SOURCE_WORDS.market : (SOURCE_WORDS[f.source || "rules"] || f.source)) + (lo ? " · Logged only (shadow mode)" : "") + "</div></li>"; });
       h += "</ul>";
       h += '<h3 class="sub">How long each check took</h3><dl class="facts">';
       (p.trace || []).forEach(function (t) { h += "<dt>" + esc(LAYER_NAMES[t.layer] || t.layer) + '</dt><dd class="num">' + (t.skipped ? "not needed" : esc(fmtMs(t.ms))) + "</dd>"; });

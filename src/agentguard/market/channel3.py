@@ -10,9 +10,16 @@ Rules (SPONSOR_STRATEGY.md, Ignacio's lens):
 - Decision-time calls use GET /v1/products/{id}, which Channel3 does not charge credits for. Prices are cached for
   15 minutes only (Channel3's guidance: don't cache prices for hours).
 - The key lives in CHANNEL3_API_KEY (env var only). It is never logged or returned.
+
+Product identity (11 Nov): the same free product lookup also returns the product's real title and brands. The shop's
+listing (title, brand) is compared with that independent record; if they describe different products, the buyer is
+asked first ("is this what you meant?"). Same soft-signal rules: it can only ask, never block or approve, and if
+Channel3 doesn't answer no identity claim is made either way. Limitation: it checks the listing against the product
+the shop links it to; it can't see what is actually in the box.
 """
 
 import os
+import re
 import statistics
 import threading
 import time
@@ -36,6 +43,8 @@ class MarketPrice:
     latency_ms: int
     from_cache: bool = False
     source: str = "Channel3"
+    title: str = ""                         # Channel3's own record of the product (identity check)
+    brands: tuple[str, ...] = ()
 
 
 class Channel3:
@@ -105,4 +114,45 @@ def summarise(product: dict, exclude_domains: tuple[str, ...] = (), latency_ms: 
         return None
     return MarketPrice(product_id=product.get("id", ""), reference_cents=int(statistics.median(prices)),
                        low_cents=min(prices), high_cents=max(prices), offers=len(prices),
-                       domains=tuple(sorted(set(domains)))[:8], latency_ms=latency_ms)
+                       domains=tuple(sorted(set(domains)))[:8], latency_ms=latency_ms,
+                       title=str(product.get("title") or "")[:200],
+                       brands=tuple(str(b.get("name", "")) for b in (product.get("brands") or [])
+                                    if isinstance(b, dict) and b.get("name"))[:5])
+
+
+_FILLER = {"the", "and", "with", "for", "new", "a", "an", "of", "in", "by", "to", "pair", "set", "edition"}
+
+
+def _words(text: str) -> list[str]:
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _codes(words: list[str]) -> set[str]:
+    """Model codes: words with both letters and digits, or 3+ digits (e.g. 235bt, x900, 1000)."""
+    return {w for w in words if (re.search(r"\d", w) and re.search(r"[a-z]", w)) or (w.isdigit() and len(w) >= 3)}
+
+
+def _same_brand(shop_brand: str, real: tuple[str, ...]) -> bool:
+    s = " ".join(_words(shop_brand))
+    return any(s and (s == r or s in r or r in s) for r in (" ".join(_words(b)) for b in real) if r)
+
+
+def compare_listing(shop_title: str, shop_brand: str | None, real_title: str, real_brands: tuple[str, ...]) -> str | None:
+    """None when the shop's listing describes the same product as Channel3's record (or there is nothing to compare);
+    otherwise a short plain-English reason ("brand", "model" or "name" differs)."""
+    if not real_title:
+        return None
+    if shop_brand and real_brands and not _same_brand(shop_brand, real_brands):
+        return "brand"
+    shop, real = _words(shop_title), _words(real_title + " " + " ".join(real_brands))
+    real_set = set(real) | {w.rstrip("s") for w in real}
+    missing_codes = _codes(shop) - real_set
+    if missing_codes:
+        return "model"
+    key = [w for w in shop if len(w) >= 3 and w not in _FILLER]
+    if key:
+        shared = sum(1 for w in key if w in real_set or w.rstrip("s") in real_set)
+        # the shop may cut a long title short, so we ask what share of the SHOP's words the real record contains
+        if shared / len(key) < 0.5:
+            return "name"
+    return None

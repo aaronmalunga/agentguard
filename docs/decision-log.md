@@ -342,3 +342,20 @@ Every significant decision, pivot and correction, newest first. Real architectur
   auto-void, Disputes API, refund guard, Postman, LLM-as-judge, p95 miss.
 - **Verified:** all 57 tests cited in the threat model exist; README numbers match `interview-prep/METRICS.md`.
 - **Rule from now on:** no public claim unless it is in the "Built" table of that file.
+
+## 11 Nov 2026 (afternoon): Channel3 product identity check (Aaron: "option A")
+- **Decision:** the free Channel3 product lookup the price check already makes now also returns the product's real title
+  and brands; if the shop's listing names a different brand, model code or product, the buyer is asked first
+  (`listing_mismatch`). New demo scenario *Mislabelled listing* (synthetic: a real Channel3 product sold under a made-up
+  "Aura Studio Pro" name at its normal price, so only this check can notice).
+- **Options considered:** A, product identity via Channel3 (chosen); B, AG Studio shadow-report dashboard (new
+  commercial library on a trial licence, 1+ day, high risk the day before the deadline); no code change.
+- **Trade-offs:** about 4 hours and one more scenario, the day before the deadline; it strengthens the main idea ("did
+  the buyer mean this?") and the Channel3 sponsor case. It can only ask, never block; no claim when Channel3 is down.
+- **Reasoning:** the AI intent check judges the shop's title; if the shop's title is false, the AI is judging a lie. An
+  independent catalogue is the only source in the system that doesn't come from the shop or the agent.
+- **Not a metric:** 6 unit tests; checked on the real snapshot (5 honest listings match, only the relabelled one is
+  flagged); not part of the frozen attack sets, so no catch rate is claimed.
+- **Bug found on the way:** with no Gemini key, recorded demo answers were looked up under NoAI's model name, so none
+  matched and every scenario fell back to "ask". This was there before today; fixed and covered by a regression test that
+  fails on the old code. It matters for the "remove the key on Render" option for Gemini's EU/UK terms.

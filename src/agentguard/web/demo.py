@@ -55,7 +55,12 @@ class Demo:
         return Catalogue(self.products, market=market)
 
 
-def _scenarios(normal, inflated, oos, swap, acc) -> dict:
+def _scenarios(normal, inflated, oos, swap, acc, relabelled=None) -> dict:
+    extra = {} if relabelled is None else {
+        "mislabelled": {"label": "Mislabelled listing", "expect": "ask first: the listing isn't the real product",
+                        "page": (f"SoundMart · {relabelled.title} · {_usd(relabelled.price_cents)} · "
+                                 "Studio-grade noise cancelling. In stock."),
+                        "lines": [(relabelled.sku, 1)]}}
     return {
         "normal": {"label": "Normal purchase", "expect": "approve → captured",
                    "page": f"SoundMart · {normal.title} · {_usd(normal.price_cents)} · In stock.",
@@ -76,6 +81,7 @@ def _scenarios(normal, inflated, oos, swap, acc) -> dict:
         "agent_lies": {"label": "Agent lies about price", "expect": "ask first: agent's price ≠ shop's price",
                        "page": f"SoundMart · {normal.title} · {_usd(normal.price_cents)} · In stock.",
                        "lines": [(normal.sku, 1)], "claimed_price": round(normal.price_cents * 0.7) / 100},
+        **extra,
     }
 
 
@@ -96,9 +102,17 @@ def build(source: str = "auto") -> Demo:
                                    reference_source=f"Channel3 snapshot {snap['retrieved_at'][:10]}",
                                    in_stock=role != "out_of_stock", channel3_id=r["channel3_id"],
                                    image=r.get("image"), brand=r.get("brand") or None)
+            # Mislabelled listing (11 Nov, synthetic): SoundMart sells the real "inflated" product under a made-up
+            # premium name and brand, at its normal market price, so the price check sees nothing wrong. Only the
+            # Channel3 identity check (listing vs Channel3's record of the same product) can notice.
+            r = by["inflated"]
+            mk["relabelled"] = Product("C3-LISTING", "Aura Studio Pro ANC wireless earbuds", "electronics_audio",
+                                       r["market_cents"], MERCHANT_ID, r["market_cents"],
+                                       reference_source=f"Channel3 snapshot {snap['retrieved_at'][:10]}",
+                                       channel3_id=r["channel3_id"], brand="Aura")
             products = list(mk.values())
             return Demo(products, _scenarios(mk["normal"], mk["inflated"], mk["out_of_stock"], mk["swap_target"],
-                                             mk["accessory"]), src)
+                                             mk["accessory"], mk["relabelled"]), src)
     return Demo(SYNTHETIC_PRODUCTS, SCENARIOS, "synthetic demo data")
 
 

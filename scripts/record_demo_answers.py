@@ -3,6 +3,9 @@
 Run from the repo root when the Gemini quota is available:  uv run python scripts/record_demo_answers.py
 Writes src/agentguard/web/demo_ai_answers.jsonl (model output + model id + measured latency + date). The hosted demo
 replays these for the five scripted scenarios, labelled "recorded <date>" on screen; anything new calls the model live.
+
+Add one scenario without touching the others (11 Nov):  uv run python scripts/record_demo_answers.py --add mislabelled
+(keeps every existing answer and its date; only the named scenarios call the model).
 """
 
 import json
@@ -24,12 +27,14 @@ def main():
     from agentguard.ai.llm import GeminiLLM
     from agentguard.web import demo
     from agentguard.web.app import create_app
-    if OUT.exists():
+    add = sys.argv[2:] if len(sys.argv) > 2 and sys.argv[1] == "--add" else []
+    if OUT.exists() and not add:
         OUT.unlink()   # start clean: answers recorded for an older catalogue or wording would never match again
     rec = CachedLLM(OUT, inner=GeminiLLM(), min_interval_s=8)   # pace calls: free tier also limits per minute
     c = TestClient(create_app(paypal_mode="fake", llm=rec, tokens={"agent": "a", "buyer": "b"}, demo_mode=True))
     ok = 0
-    for sc in demo.SCENARIOS:
+    names = add or list(demo.SCENARIOS)
+    for sc in names:
         p = c.post("/api/demo/run", json={"scenario": sc}, headers={"Authorization": "Bearer b"}).json()["payment"]
         ai = p.get("ai") or {}
         good = "model" in ai
@@ -42,8 +47,8 @@ def main():
     lines = [json.loads(x) for x in OUT.read_text(encoding="utf-8").splitlines()] if OUT.exists() else []
     OUT.write_text("".join(json.dumps({**r, "recorded_at": r.get("recorded_at", stamp)}, ensure_ascii=False) + "\n"
                            for r in lines), encoding="utf-8")
-    print(f"\n{ok}/{len(demo.SCENARIOS)} scenarios have a recorded AI answer -> {OUT.relative_to(ROOT)}")
-    return 0 if ok == len(demo.SCENARIOS) else 1
+    print(f"\n{ok}/{len(names)} scenarios have a recorded AI answer -> {OUT.relative_to(ROOT)}")
+    return 0 if ok == len(names) else 1
 
 
 if __name__ == "__main__":

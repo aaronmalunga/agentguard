@@ -291,7 +291,12 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
             RecordedFirstLLM,  # D14: scripted scenarios replay recorded real answers
         )
         if DEMO_ANSWERS.exists():
-            llm = RecordedFirstLLM(DEMO_ANSWERS, inner=None if isinstance(llm, NoAI) else llm, model=llm.model)
+            # 11 Nov fix: the recordings are keyed by the model that made them. With no key, look them up under that
+            # model's name (not NoAI's), so the scripted scenarios still replay real answers; anything new still
+            # fails safe to "ask the buyer".
+            from agentguard.ai.llm import DEFAULT_MODEL
+            rec_model = os.environ.get("GEMINI_MODEL", DEFAULT_MODEL) if isinstance(llm, NoAI) else llm.model
+            llm = RecordedFirstLLM(DEMO_ANSWERS, inner=None if isinstance(llm, NoAI) else llm, model=rec_model)
     demo_mode = demo_mode if demo_mode is not None else os.environ.get("AGENTGUARD_DEMO", "1") == "1"
     tokens = tokens or {"agent": os.environ.get("AGENTGUARD_AGENT_TOKEN") or DEMO_TOKENS["agent"],
                         "buyer": os.environ.get("AGENTGUARD_BUYER_TOKEN") or DEMO_TOKENS["buyer"]}

@@ -6,6 +6,8 @@ catalogue, that is a sign the agent was misled (or is lying), so it becomes a fi
 
 `reference_price` is an independent market price (Channel3 when connected; otherwise the demo catalogue's own
 "usual price", labelled synthetic). It can only raise "hold" via the price rule, never block.
+The same Channel3 lookup also checks product identity (11 Nov): if the shop's listing describes a different product
+from Channel3's record for it, the buyer is asked first (`listing_mismatch`). Never a block; never an approval.
 """
 
 from dataclasses import dataclass
@@ -15,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field
 from agentguard.guard.decision import Finding
 from agentguard.guard.request import Item
 from agentguard.mandate import Address
+from agentguard.market.channel3 import compare_listing
 from agentguard.money import fmt, to_cents
 
 
@@ -76,13 +79,13 @@ class Catalogue:
                                      f"The agent described this item as '{line.claimed_title[:80]}', but the shop's "
                                      f"records say '{p.title}'.", "the agent's description matches the shop's "
                                      "records, or you confirm", source="catalogue"))
-            ref_cents, ref_src = self._reference(p, market)
+            ref_cents, ref_src = self._reference(p, market, found)
             items.append(Item(sku=p.sku, title=p.title, category=p.category, unit_price=p.price_cents / 100,
                               reference_price=(ref_cents / 100) if ref_cents else None, reference_source=ref_src,
                               quantity=line.quantity, merchant_id=p.merchant_id))
         return items, found, market
 
-    def _reference(self, p: Product, market: list[dict]) -> tuple[int | None, str | None]:
+    def _reference(self, p: Product, market: list[dict], found: list[Finding]) -> tuple[int | None, str | None]:
         """Live market price from Channel3 when available; otherwise the stored reference, labelled as stored."""
         if self.market is not None and p.channel3_id:
             mp = self.market.market_price(p.channel3_id)
@@ -91,6 +94,18 @@ class Catalogue:
                                "median_cents": mp.reference_cents, "low_cents": mp.low_cents,
                                "high_cents": mp.high_cents, "offers": mp.offers, "domains": list(mp.domains),
                                "cached": mp.from_cache, "live": True})
+                why = compare_listing(p.title, p.brand, mp.title, mp.brands)
+                market[-1].update({"c3_title": mp.title, "c3_brands": list(mp.brands),
+                                   "listing_match": None if not mp.title else why is None})
+                if why:
+                    shop = f"'{p.title}'" + (f" by {p.brand}" if p.brand else "")
+                    real = f"'{mp.title[:90]}'" + (f" by {', '.join(mp.brands[:2])}" if mp.brands else "")
+                    found.append(Finding(
+                        "listing_mismatch", "ask_first",
+                        f"The shop lists this as {shop}, but Channel3's independent product catalogue says it is "
+                        f"{real} (the {why} differs). The agent may be buying something other than what the "
+                        "listing says.",
+                        "the shop's listing matches the real product, or you confirm", source="catalogue"))
                 # no per-call Channel3 timing in the API: their Publisher Terms s7 forbid publishing benchmarks of the
                 # service without consent (sources.md S9). Our own step time is in the decision trace.
                 label = (f"Channel3, median of {mp.offers} shops" if mp.offers >= 3

@@ -21,6 +21,8 @@ README, the video or Devpost unless it is in the "Built" table.
 | Idempotency (`PayPal-Request-Id` on every money call) | Brief s.8 | `test_every_money_call_sends_a_request_id`, `test_capture_replay_returns_same_capture_no_double_charge` |
 | Per-agent revocable keys + MCP server (4 tools, none moves money) | ADR-0005 amendment | `test_exactly_four_tools_and_none_can_approve_or_move_money` |
 | Channel3 market price (soft signal) | Sponsor strategy | live trace "Market price" |
+| Channel3 product identity check: listing vs Channel3's record (soft signal, asks first) | Sponsor review, 11 Nov | `test_market.py` (6 tests); "Mislabelled listing" scenario; not in the measured attack sets |
+| Keyless demo still replays recorded answers (bug fixed 11 Nov) | D14 | `test_without_a_gemini_key_the_scripted_scenarios_still_replay_recorded_answers` |
 | Dispute flag + signed evidence attached (not sent) | Stretch | `test_dispute_on_paypal_flags_payment_and_attaches_signed_evidence` |
 | Evaluation: rules-only vs full, frozen sets, held-out, pre-registered real-agent runs | Brief s.9 | `evidence/runs/`, `evidence/agent_runs/`, `docs/evaluation-plan.md` |
 | Security: CSP, HSTS, rate limits, secrets never logged, threat model | Brief s.8 | `docs/threat-model.md` (all 57 cited tests exist, checked 11 Nov) |
