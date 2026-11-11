@@ -81,7 +81,7 @@ def test_every_scenario_keeps_its_promises_in_every_setting(monkeypatch, setting
         assert p["mislabelled"]["status"] not in PAID and \
             any(f["code"] == "listing_mismatch" for f in p["mislabelled"]["findings"]), setting
     if setting.startswith("key_removed"):                                     # recorded answers still replay
-        for sc in ("normal", "poisoned", "inflated", "out_of_stock_swap", "agent_lies"):
+        for sc in SCENARIOS:
             assert (p[sc].get("ai") or {}).get("provider", "").startswith("recorded"), (setting, sc)
 
 

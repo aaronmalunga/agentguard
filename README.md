@@ -100,9 +100,8 @@ Then try:
   limits still block; the AI checks only record "would have asked/held/blocked", with a running tally.
 
 Every visitor gets their own demo session (own budget, payments and log), so judges never see each other's runs.
-The scenario buttons use a scripted demo agent. The first five replay real Gemini answers recorded on 9 Nov (labelled
-**"recorded"** on screen), so they behave the same for every judge; *Mislabelled listing* (added 11 Nov) calls the
-model live. Your own rules, your own pasted pages and real
+The scenario buttons use a scripted demo agent and replay real Gemini answers (recorded on 9 Nov; *Mislabelled
+listing* on 11 Nov), labelled **"recorded"** on screen, so they behave the same for every judge. Your own rules, your own pasted pages and real
 agents (below) are checked live.
 
 ## Connect a real agent (MCP)
@@ -344,7 +343,7 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
 - `gemini-3.5-flash-lite` (Google, free tier):
   - drafts mandate rules from the buyer's words (nothing applies until the buyer approves);
   - checks each cart against what the buyer meant.
-- The five demo scenarios replay real model answers recorded on 9 Nov, labelled **"recorded"** with the latency
+- The six demo scenarios replay real model answers (recorded 9 Nov; Mislabelled listing 11 Nov), labelled **"recorded"** with the latency
   measured at the time, so the demo works when the free quota runs out.
 - Your own rules and your own pasted pages call the live model.
 - Details: [AI governance and model card](docs/ai-governance.md).
