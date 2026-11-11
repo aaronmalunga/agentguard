@@ -144,7 +144,11 @@
       var pb = $("paypalBadge"); pb.textContent = h.paypal.indexOf("FakePayPal") === 0 ? "FakePayPal (simulated)" : "PayPal sandbox";
       pb.classList.toggle("warn", h.paypal.indexOf("FakePayPal") === 0);
       pb.title = h.paypal;
-      $("aiBadge").textContent = "AI: " + h.ai;
+      $("aiBadge").textContent = h.live_ai === false ? "AI: saved answers" : "AI: " + h.ai;
+      if (h.live_ai === false) {   // option C, 11 Nov: no live model on this demo, so no drafting dead end
+        $("draftBtn").disabled = true;
+        $("draftOut").innerHTML = '<p class="hint">Live drafting is off on this demo. See "Rules in force".</p>';
+      }
       $("aiBadge").title = "Market prices: " + (h.market || "off");
     }).catch(function () { $("paypalBadge").textContent = "Server unreachable"; $("paypalBadge").classList.add("warn"); });
   }

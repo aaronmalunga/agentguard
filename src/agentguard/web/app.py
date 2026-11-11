@@ -404,6 +404,10 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                 "product_data": st.demo.source,
                 "webhooks": "on (PayPal-verified)" if webhook_verifier else "off",
                 "webhook_counts": hooks,
+                # 11 Nov (option C): False when only saved answers can be replayed (no model key), so the page never
+                # implies a live model that isn't there.
+                "live_ai": st.llm is not None and not isinstance(st.llm, NoAI)
+                and getattr(st.llm, "inner", st.llm) is not None,
                 "recorded_ai_answers": sum(1 for _ in DEMO_ANSWERS.open(encoding="utf-8")) if DEMO_ANSWERS.exists() else 0}
 
     # ---------------------------------------------------------------- shop data (public)

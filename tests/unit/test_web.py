@@ -70,7 +70,7 @@ def paypal_calls(st):
 def test_health_labels_simulated_paypal_and_ai_model():
     c, _ = client()
     h = c.get("/healthz").json()
-    assert h["ok"] and "FakePayPal" in h["paypal"] and h["ai"] == "fake-model"
+    assert h["ok"] and "FakePayPal" in h["paypal"] and h["ai"] == "fake-model" and h["live_ai"] is True
 
 
 def test_security_headers_on_app_and_api():

@@ -350,7 +350,8 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
   - checks each cart against what the buyer meant.
 - The six demo scenarios replay real model answers (recorded 9 Nov; Mislabelled listing 11 Nov), labelled **"recorded"** with the latency
   measured at the time, so the demo works when the free quota runs out.
-- Your own rules and your own pasted pages call the live model.
+- On the public demo, live AI is off (no paid model key): rule drafting is switched off and a page you paste gets the
+  fail-safe "ask the buyer". Run it locally with your own key for live answers.
 - Details: [AI governance and model card](docs/ai-governance.md).
 
 **AI used to build it**

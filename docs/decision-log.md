@@ -397,3 +397,12 @@ Every significant decision, pivot and correction, newest first. Real architectur
   with 0 false blocks; README now says "all 10 completed runs (7 of 10 slots)" instead of "10/10". The other totals were
   rechecked and stand: 34 completed runs, 31 of 40 slots, 0 harmful payments.
 - **Test count:** 250 as CI runs them (`--all-extras`); a plain `uv sync` skips the 4 MCP tests (246). Coverage 94%.
+
+## 11 Nov 2026 (night): public demo runs without a live model (option C) — freeze exception
+- **Decision (Aaron):** no paid Gemini key, so `GEMINI_API_KEY` is removed from Render (the free tier's terms don't
+  cover judges in the EU, UK or Switzerland). Scenario buttons keep replaying saved real answers, labelled.
+- **Freeze exception, text only:** with no key the header still said "AI: gemini-3.5-flash-lite" and "Draft my rules"
+  ended in an error. `/healthz` now reports `live_ai`; the header says "AI: saved answers" and drafting is switched off
+  with one line instead of an error. No decision logic changed. Test: `test_healthz_says_whether_a_live_model_answers`.
+- **Video:** real-agent clips recorded before the key is removed, labelled "Real agent run"; site clips after, as judges
+  will see it.

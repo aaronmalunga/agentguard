@@ -170,3 +170,14 @@ def test_without_a_gemini_key_the_scripted_scenarios_still_replay_recorded_answe
         assert (p.get("ai") or {}).get("provider", "").startswith("recorded"), sc
     assert c.post("/api/demo/run", json={"scenario": "normal"},
                   headers={"Authorization": "Bearer b"}).json()["payment"]["status"] == "captured"
+
+
+def test_healthz_says_whether_a_live_model_answers(monkeypatch):
+    # 11 Nov, option C (no paid key): the header must not imply a live model when only saved answers replay.
+    monkeypatch.delenv("GEMINI_API_KEY", raising=False)
+    monkeypatch.delenv("GEMINI_MODEL", raising=False)
+    monkeypatch.delenv("CHANNEL3_API_KEY", raising=False)
+    no_key = TestClient(create_app(paypal_mode="fake", tokens={"agent": "a", "buyer": "b"}, demo_mode=True))
+    assert no_key.get("/healthz").json()["live_ai"] is False
+    off = TestClient(create_app(paypal_mode="fake", ai="off", tokens={"agent": "a", "buyer": "b"}, demo_mode=True))
+    assert off.get("/healthz").json()["live_ai"] is False
