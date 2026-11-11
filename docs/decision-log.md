@@ -332,3 +332,13 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Trade-offs:** three small changes on the money and webhook paths 14 h before code freeze, each with a test; the rest have no effect on today's live paths.
 - **Reasoning:** G2 would point an operator at the wrong cause during a PayPal outage; W3 would leave verification down for hours after a secret rotation; G1 makes an SDK upgrade visible. None changes what gets charged.
 - **Source:** Aaron installed the plugin (`npx context-plugins install https://github.com/paypaldev/server-sdk-context-plugin-preview`; no APIMatic subscription needed, per APIMatic's reply) and ran the review in Claude Code on his laptop.
+
+## 11 Nov 2026: planned-vs-built reconciliation (Aaron: "make sure what we decided is what we've done")
+- Every commitment in the brief, ADRs and decision log checked against code and evidence → `docs/planned-vs-built.md`.
+- **Silent gaps found and now documented:** PostgreSQL never built (ADR-0007 amended); buyer approval on PayPal's page
+  (JS SDK v6) not built; MCP proxy over PayPal's toolkit replaced by our own MCP server; AG Grid extras (grouping,
+  risk renderer, master/detail, feedback labels) not built; MLflow not used; Pay Later rule, runbook, parsing-accuracy
+  and variance metrics not built. Already documented before: anomaly model, bake-off, AWS, OTel, advisory mode,
+  auto-void, Disputes API, refund guard, Postman, LLM-as-judge, p95 miss.
+- **Verified:** all 57 tests cited in the threat model exist; README numbers match `interview-prep/METRICS.md`.
+- **Rule from now on:** no public claim unless it is in the "Built" table of that file.

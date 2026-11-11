@@ -53,3 +53,12 @@ RETURNING spent, reserved, budget_limit;
 - **Negative:** one more service to run and monitor; free tiers can pause (cold start), so the judge demo must keep it
   warm or use a paid tier during judging.
 - **To verify:** Neon free-tier limits and pause behaviour; Render Postgres price; SQLite version on the CI runner.
+
+## Amendment, 11 Nov 2026: PostgreSQL not built for v1
+The sprint shipped **SQLite only** (in memory on the Render demo; a file database locally). The atomic reservation is
+the same single conditional `UPDATE` described above and is tested on SQLite
+(`test_parallel_reservations_never_exceed_budget`: 10 parallel $20 requests against $80 → exactly 4 succeed). The
+Postgres service, Alembic migrations and the Postgres-in-CI concurrency test were **not built**. Consequences: demo data
+resets on every restart (disclosed on the page and in the README); one server process. PostgreSQL (or DynamoDB on the
+AWS path) stays the production design and is the first item of v2 (`docs/production-gaps.md`). Recorded in
+`docs/planned-vs-built.md`.

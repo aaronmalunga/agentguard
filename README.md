@@ -351,6 +351,7 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
 - **Sandbox and synthetic data.** The attack catalogues are ours (written from published attack research), so the
   results show the mechanism works, not real-world rates.
 - **Mandates are AP2-style**, not the full AP2 protocol with verifiable credentials.
+- **The buyer approves rules inside AgentGuard,** not on a PayPal page; payments use a saved card in PayPal's Vault.
 - **One AI model, chosen by constraint.** `gemini-3.5-flash-lite` is the free model we could use; the planned
   three-vendor comparison wasn't run ([ADR-0006](docs/adr/0006-llm-provider-hybrid.md)).
 - An anomaly model and AI grading of explanation quality were designed but not built
@@ -365,6 +366,7 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
 - One server process; the rate limit and sessions live in memory.
 - What a real deployment would add (durable storage, tenants, KMS key, reconciliation, advisory mode):
   [docs/production-gaps.md](docs/production-gaps.md).
+- Everything we planned and what happened to it, item by item: [docs/planned-vs-built.md](docs/planned-vs-built.md).
 
 **Results we fell short on**
 
