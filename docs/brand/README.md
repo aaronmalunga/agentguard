@@ -10,4 +10,4 @@
 
 Colours and fonts match the live site (`src/agentguard/web/static/app.css`): paper `#121214`, accent `#d99a6c`,
 Michroma for the name, Reddit Sans for text (both SIL Open Font Licence, see `src/agentguard/web/static/vendor/fonts/`).
-The site itself still uses `src/agentguard/web/static/img/emblem.jpg`.
+Since 11 Nov the site uses the transparent shield too (`src/agentguard/web/static/img/emblem.png`, also the favicon); `emblem.jpg` is kept as the original.
