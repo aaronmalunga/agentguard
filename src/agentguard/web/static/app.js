@@ -59,6 +59,7 @@
     captured: ["approve", "Captured"], held: ["hold", "Held, waiting"], awaiting_buyer: ["ask", "Asked first"],
     blocked: ["block", "Blocked"], declined: ["block", "Declined by PayPal"], voided: ["neutral", "Voided, $0 fee"],
     rejected: ["neutral", "Rejected, never charged"], unknown: ["hold", "Checking with PayPal"], deciding: ["neutral", "Deciding"],
+    authorizing: ["hold", "Sending to PayPal"], capturing: ["hold", "Capturing with PayPal"], voiding: ["hold", "Releasing the hold"],
     partially_refunded: ["neutral", "Part refunded outside AgentGuard"],
     refunded: ["neutral", "Refunded outside AgentGuard"],
     reversed: ["block", "Reversed (chargeback)"]
@@ -315,18 +316,27 @@
     var b = e.target.closest("button[data-act]"); if (!b) return;
     answer(b.dataset.id, b.dataset.act, b);
   });
+  var ANSWERED = {   // review 11 Nov #5: say what actually happened, never assume
+    captured: "Paid. PayPal captured the payment.", voided: "Hold voided. No fee.",
+    rejected: "Cancelled. Nothing was sent to PayPal, so nothing was charged.",
+    unknown: "Not confirmed with PayPal yet. The hold may still be active; AgentGuard keeps the budget reserved until PayPal confirms.",
+    declined: "PayPal declined it. Nothing was charged.", blocked: "Blocked: the remaining budget was used by another payment."
+  };
   function answer(id, act, btn) {
-    if (btn) btn.setAttribute("aria-busy", "true");
+    if (btn) { if (btn.getAttribute("aria-busy") === "true") return; btn.setAttribute("aria-busy", "true"); btn.disabled = true; }
+    document.querySelectorAll('button[data-id="' + CSS.escape(id) + '"]').forEach(function (x) { x.disabled = true; });   // one answer per payment
     return api("/api/payments/" + encodeURIComponent(id) + "/" + act, { method: "POST" }).then(function (p) {
-      toast(act === "approve" ? (p.status === "captured" ? "Paid. PayPal captured the payment." : "PayPal says: " + p.status)
-        : (p.status === "voided" ? "Hold voided. No fee." : "Cancelled. Nothing was charged."));
+      toast(ANSWERED[p.status] || "PayPal says: " + p.status);
       coin(coinKind(p.status) || (act === "reject" ? null : "approve"));
       if (!$("view-run").hidden) { renderPhone(p, $("phone")); var o = OUTCOME[p.status];
         if (o) { $("outcome").className = "outcome " + o[0]; $("outcomeTitle").textContent = o[1]; $("outcomeSub").textContent = o[2](p); } }
       if (!$("view-inbox").hidden) loadInbox();
       if (!$("view-console").hidden) loadConsole();
       refreshCount();
-    }).catch(function (err) { toast(err.message); if (btn) btn.removeAttribute("aria-busy"); });
+    }).catch(function (err) {
+      toast(err.message); if (btn) btn.removeAttribute("aria-busy");
+      document.querySelectorAll('button[data-id="' + CSS.escape(id) + '"]').forEach(function (x) { x.disabled = false; });
+    });
   }
 
   function run(body, btn) {

@@ -16,6 +16,7 @@ the budget reserved until it is read back (ADR-0007).
 
 import hashlib
 import json
+import sqlite3
 import time
 import uuid
 from collections.abc import Callable
@@ -41,6 +42,12 @@ class FlowError(Exception):
     pass
 
 
+class _Duplicate(Exception):
+    """Two requests with the same Idempotency-Key raced to insert (review 11 Nov #12): the loser returns the winner's row."""
+    def __init__(self, row: dict):
+        self.row = row
+
+
 class PaymentService:
     def __init__(self, store: Store, gateway: PayPalGateway, *, mandates: dict[str, Mandate],
                  registry: dict[str, str], payment_source: Callable[[str], object],
@@ -59,13 +66,18 @@ class PaymentService:
         cur = self.mandates.get(m.mandate_id)
         if cur and m.version <= cur.version:
             raise FlowError(f"mandate {m.mandate_id} is already at version {cur.version}")
-        self.mandates[m.mandate_id] = m
-        self.history[(m.mandate_id, m.version)] = m
+        # review 11 Nov #2: check the budget BEFORE the new version goes live, so a refusal changes nothing
         b = self.store.budget(m.mandate_id)
         if not b:
             self.store.ensure_budget(m.mandate_id, m.budget_total_cents)
-        elif b["budget_cents"] != m.budget_total_cents:
-            self.store.set_budget(m.mandate_id, m.budget_total_cents)
+        elif b["budget_cents"] != m.budget_total_cents and not self.store.set_budget(m.mandate_id,
+                                                                                       m.budget_total_cents):
+            used = b["spent_cents"] + b["reserved_cents"]
+            raise FlowError(f"The new total budget (${m.budget_total_cents / 100:,.2f}) is less than what is already "
+                            f"spent or held (${used / 100:,.2f}). Choose at least ${used / 100:,.2f}, or answer or "
+                            "cancel held payments first. The current rules stay in force.")
+        self.mandates[m.mandate_id] = m
+        self.history[(m.mandate_id, m.version)] = m
         self._audit("mandate_activated", None, {"mandate_id": m.mandate_id, "version": m.version,
                                                 "fingerprint": m.fingerprint(), "mandate": m.model_dump(mode="json")})
         return m
@@ -101,8 +113,12 @@ class PaymentService:
                                      "buyer.", "the agent cites a mandate the buyer actually approved"))
             d = combine(found, agent_note=cart.agent_note)
             d.trace = steps
-            pid = self._new_record(request_key, cart.mandate_id, cart.mandate_version, None, 0, "USD", d,
-                                   cart_json=cart.model_dump_json(), page_source=page_source, agent_id=cart.agent_id)
+            try:
+                pid = self._new_record(request_key, cart.mandate_id, cart.mandate_version, None, 0, "USD", d,
+                                       cart_json=cart.model_dump_json(), page_source=page_source,
+                                       agent_id=cart.agent_id)
+            except _Duplicate as dup:
+                return dup.row
             return self._done("decision", self.store.update_payment(pid, status="blocked"))
         req = PaymentRequest(action=cart.action, mandate_id=cart.mandate_id, mandate_version=cart.mandate_version,
                              payee=Payee(merchant_id=cart.merchant_id,
@@ -133,10 +149,13 @@ class PaymentService:
         decision.trace = trace
         shadow = apply_shadow(decision) if mandate is not None and mandate.mode == "shadow" else None
         amount = sum(line_total_cents(i.unit_price, i.quantity) for i in request.items)
-        pid = self._new_record(request_key, request.mandate_id, request.mandate_version, mandate, amount,
-                               request.currency, decision, cart_json=cart_json or request.model_dump_json(),
-                               page_source=page_source, agent_id=request.agent_id,
-                               shadow_json=json.dumps(shadow) if shadow else None)
+        try:
+            pid = self._new_record(request_key, request.mandate_id, request.mandate_version, mandate, amount,
+                                   request.currency, decision, cart_json=cart_json or request.model_dump_json(),
+                                   page_source=page_source, agent_id=request.agent_id,
+                                   shadow_json=json.dumps(shadow) if shadow else None)
+        except _Duplicate as dup:                         # same Idempotency-Key raced in: same answer as the winner
+            return dup.row
         if decision.level == "block":
             return self._done("decision", self.store.update_payment(pid, status="blocked"))
         if decision.level == "ask_first":
@@ -148,20 +167,28 @@ class PaymentService:
     def buyer_approve(self, pid: str) -> dict:
         p = self.store.payment(pid)
         if p.get("status") == "held":
-            return self._done("buyer_approved", self._capture(p))
+            return self._done("buyer_approved", self._capture(p))      # _capture claims held -> capturing
         if p.get("status") == "awaiting_buyer":
-            return self._done("buyer_approved", self._authorize(p, capture_now=True))
+            # review 11 Nov #7: nothing has gone to PayPal yet, so it must still fall under the rules it was judged on
+            m = self.mandates.get(p["mandate_id"])
+            if m is None or m.version != p["mandate_version"] or m.status != "active" or not m.is_valid_at(self.clock()):
+                raise FlowError("The buyer's rules changed (or ended) after this payment was asked about, so it can't "
+                                "be approved under them. Ask the agent to try again under the current rules.")
+            if not self.store.claim(pid, ("awaiting_buyer",), "authorizing"):
+                raise FlowError(f"payment {pid} was already answered")
+            return self._done("buyer_approved", self._authorize(self.store.payment(pid), capture_now=True))
         raise FlowError(f"payment {pid} is {p.get('status')}, nothing to approve")
 
     def buyer_reject(self, pid: str) -> dict:
         return self._done("buyer_rejected", self._reject(pid))
 
     def _reject(self, pid: str) -> dict:
-        p = self.store.payment(pid)
-        if p.get("status") == "awaiting_buyer":
-            return self.store.update_payment(pid, status="rejected")        # nothing was ever sent to PayPal
-        if p.get("status") != "held":
+        if self.store.claim(pid, ("awaiting_buyer",), "rejected"):        # nothing was ever sent to PayPal
+            return self.store.payment(pid)
+        if not self.store.claim(pid, ("held",), "voiding"):
+            p = self.store.payment(pid)
             raise FlowError(f"payment {pid} is {p.get('status')}, nothing to reject")
+        p = self.store.payment(pid)
         try:
             v = self.gw.void(p["paypal_authorization_id"], request_id=f"{pid}-void")
         except PayPalError as e:
@@ -239,13 +266,22 @@ class PaymentService:
     # ------------------------------------------------------------------ internals
     def _new_record(self, request_key, mandate_id, version, mandate, amount, currency, d: Decision, **extra) -> str:
         pid = "pay_" + uuid.uuid4().hex[:16]
+        try:
+            self._insert(pid, request_key, mandate_id, version, mandate, amount, currency, d, extra)
+        except sqlite3.IntegrityError:
+            existing = self.store.by_request_key(request_key)
+            if existing:
+                raise _Duplicate(existing) from None
+            raise
+        return pid
+
+    def _insert(self, pid, request_key, mandate_id, version, mandate, amount, currency, d: Decision, extra) -> None:
         self.store.insert_payment(
             id=pid, request_key=request_key, mandate_id=mandate_id, mandate_version=version,
             mandate_fingerprint=mandate.fingerprint() if mandate else None, amount_cents=amount, currency=currency,
             level=d.level, status="deciding", findings_json=json.dumps([asdict(f) for f in d.findings]),
             facts_json=json.dumps(d.verified_facts), agent_note=d.agent_note,
             ai_json=json.dumps(d.ai_call) if d.ai_call else None, trace_json=json.dumps(d.trace), **extra)
-        return pid
 
     def _audit(self, kind: str, pid: str | None, data: dict) -> dict:
         return self.store.append_audit(kind, pid, audit.canonical(data), audit.link)
@@ -271,16 +307,17 @@ class PaymentService:
             return self.store.update_payment(pid, status="blocked", level="block",
                                              findings_json=json.dumps([*json.loads(p["findings_json"]),
                                                                        lost.__dict__]))
-        mandate = self.mandates[p["mandate_id"]]
         try:
             a = self.gw.authorize(amount=Decimal(cents) / 100, currency=p["currency"],
                                   payment_source=self.payment_source(p["mandate_id"]), request_id=f"{pid}-auth",
                                   reference_id=pid, description="AgentGuard agent purchase",
-                                  custom_id=f"agentguard:{mandate.fingerprint()}")
+                                  custom_id=f"agentguard:{p['mandate_fingerprint']}")   # #7: the version judged
         except PayPalError as e:                                       # outcome unknown: keep the reservation
             return self.store.update_payment(pid, status="unknown", paypal_debug_id=e.debug_id)
         fields = {"paypal_order_id": a.order_id, "paypal_authorization_id": a.authorization_id,
                   "paypal_status": a.status, "paypal_debug_id": a.debug_id}
+        if a.status == "PENDING":            # review 11 Nov #13: not a refusal; keep the reservation, a webhook settles it
+            return self.store.update_payment(pid, status="unknown", **fields)
         if not a.authorized:                                           # e.g. DENIED (HTTP 201!)
             self.store.release(p["mandate_id"], cents)
             return self.store.update_payment(pid, status="declined", **fields)
@@ -289,6 +326,10 @@ class PaymentService:
 
     def _capture(self, p: dict) -> dict:
         pid = p["id"]
+        # review 11 Nov #4/#14: claim first. A second approve loses here; a webhook arriving mid-capture sees
+        # "capturing" (not in paypal_events.UNSETTLED) and changes nothing, so the money is settled exactly once.
+        if not self.store.claim(pid, ("held",), "capturing"):
+            raise FlowError(f"payment {pid} is {self.store.payment(pid).get('status')}, nothing to capture")
         try:
             c = self.gw.capture(p["paypal_authorization_id"], request_id=f"{pid}-capture")
         except PayPalError as e:

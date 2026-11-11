@@ -42,13 +42,19 @@ class Store:
     def __init__(self, path: str = ":memory:"):
         self._db = sqlite3.connect(path, check_same_thread=False, isolation_level=None)
         self._db.row_factory = sqlite3.Row
-        self._lock = threading.Lock()   # one writer at a time for SQLite; Postgres uses row locks instead
+        # one connection, so one user at a time: writers AND readers (review 11 Nov: a read interleaved with another
+        # thread's open transaction on the shared connection could come back empty). RLock: reads inside a tx are fine.
+        self._lock = threading.RLock()
         self._db.executescript(SCHEMA)
         cols = {r["name"] for r in self._db.execute("PRAGMA table_info(payments)")}
         for col, ddl in (("refunded_cents", "INTEGER NOT NULL DEFAULT 0"), ("dispute_json", "TEXT"),
                          ("shadow_json", "TEXT")):
             if col not in cols:   # a file database created before 9 Nov (shadow_json: 10 Nov)
                 self._db.execute(f"ALTER TABLE payments ADD COLUMN {col} {ddl}")
+
+    def _read(self, sql: str, args: tuple = ()) -> list[sqlite3.Row]:
+        with self._lock:
+            return self._db.execute(sql, args).fetchall()
 
     @contextmanager
     def _tx(self):
@@ -67,13 +73,16 @@ class Store:
             db.execute("INSERT OR IGNORE INTO budgets (mandate_id, budget_cents, spent_cents) VALUES (?,?,?)",
                        (mandate_id, budget_cents, spent_cents))
 
-    def set_budget(self, mandate_id: str, budget_cents: int):
-        """New mandate version with a different budget. The CHECK constraint refuses a budget below what's used."""
+    def set_budget(self, mandate_id: str, budget_cents: int) -> bool:
+        """New mandate version with a different budget. Refused (False) if it is below what is already spent or held."""
         with self._tx() as db:
-            db.execute("UPDATE budgets SET budget_cents=? WHERE mandate_id=?", (budget_cents, mandate_id))
+            cur = db.execute("UPDATE budgets SET budget_cents=? WHERE mandate_id=? "
+                             "AND spent_cents + reserved_cents <= ?", (budget_cents, mandate_id, budget_cents))
+            return cur.rowcount == 1
 
     def budget(self, mandate_id: str) -> dict:
-        row = self._db.execute("SELECT * FROM budgets WHERE mandate_id=?", (mandate_id,)).fetchone()
+        rows = self._read("SELECT * FROM budgets WHERE mandate_id=?", (mandate_id,))
+        row = rows[0] if rows else None
         return dict(row) if row else {}
 
     def reserve(self, mandate_id: str, cents: int) -> bool:
@@ -110,16 +119,27 @@ class Store:
             db.execute(f"UPDATE payments SET {sets} WHERE id=?", (*fields.values(), pid))
         return self.payment(pid)
 
+    def claim(self, pid: str, from_statuses: tuple[str, ...], to_status: str) -> bool:
+        """Atomic status claim (review 11 Nov, #4/#5/#14): only one caller can move a payment out of `from_statuses`.
+        Two approves, or an approve racing a reject, can never both act; the loser gets False."""
+        marks = ",".join("?" * len(from_statuses))
+        with self._tx() as db:
+            cur = db.execute(f"UPDATE payments SET status=?, updated_at=? WHERE id=? AND status IN ({marks})",
+                             (to_status, now(), pid, *from_statuses))
+            return cur.rowcount == 1
+
     def payment(self, pid: str) -> dict:
-        row = self._db.execute("SELECT * FROM payments WHERE id=?", (pid,)).fetchone()
+        rows = self._read("SELECT * FROM payments WHERE id=?", (pid,))
+        row = rows[0] if rows else None
         return dict(row) if row else {}
 
     def by_request_key(self, key: str) -> dict:
-        row = self._db.execute("SELECT * FROM payments WHERE request_key=?", (key,)).fetchone()
+        rows = self._read("SELECT * FROM payments WHERE request_key=?", (key,))
+        row = rows[0] if rows else None
         return dict(row) if row else {}
 
     def payments(self) -> list[dict]:
-        return [dict(r) for r in self._db.execute("SELECT * FROM payments ORDER BY created_at DESC, id DESC")]
+        return [dict(r) for r in self._read("SELECT * FROM payments ORDER BY created_at DESC, id DESC")]
 
     # ---- audit log (hash chain; see agentguard.flow.audit). Append-only: there is no update or delete method.
     def append_audit(self, kind: str, payment_id: str | None, data_json: str,
@@ -185,7 +205,7 @@ class Store:
 
     def audit_entries(self, payment_id: str | None = None) -> list[dict]:
         if payment_id:
-            rows = self._db.execute("SELECT * FROM audit WHERE payment_id=? ORDER BY seq", (payment_id,))
+            rows = self._read("SELECT * FROM audit WHERE payment_id=? ORDER BY seq", (payment_id,))
         else:
-            rows = self._db.execute("SELECT * FROM audit ORDER BY seq")
+            rows = self._read("SELECT * FROM audit ORDER BY seq")
         return [dict(r) for r in rows]

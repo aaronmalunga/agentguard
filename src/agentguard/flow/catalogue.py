@@ -57,7 +57,16 @@ class Catalogue:
         """Build the cart from the catalogue. Unknown SKUs block; agent claims that disagree are findings.
         Returns (items, findings, market checks made)."""
         items, found, market = [], [], []
+        # review 11 Nov #1: the quantity limit is per product, so lines naming the same SKU are merged first
+        # (two lines of 1 = one line of 2). The first line's claims are kept for the claim checks.
+        merged: dict[str, CartLine] = {}
         for line in lines:
+            if line.sku in merged:
+                prev = merged[line.sku]
+                merged[line.sku] = prev.model_copy(update={"quantity": prev.quantity + line.quantity})
+            else:
+                merged[line.sku] = line
+        for line in merged.values():
             p = self.products.get(line.sku)
             if p is None:
                 found.append(Finding("unknown_product", "block",

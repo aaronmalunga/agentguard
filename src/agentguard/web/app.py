@@ -471,7 +471,7 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
         cart = AgentCart.model_validate(body.model_dump(exclude={"page_id"}))
         p = st.svc.submit_cart(cart, request_key=idempotency_key, page_text=pg["text"] if pg else "",
                                page_source=f"{pg['id']} sha256:{pg['sha256'][:16]}" if pg else None)
-        return view(p)
+        return {"id": p["id"], **agent_view(p)}   # review 11 Nov #10: the agent's view only (no budget, AI, trace)
 
     # ---------------------------------------------------------------- agent keys (M1)
     @app.post("/api/agent-keys", tags=["agents"], dependencies=[buyer], status_code=201)

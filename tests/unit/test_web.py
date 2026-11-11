@@ -57,6 +57,11 @@ def pay(c, body=None, key="k1", headers=AGENT):
     return c.post("/api/payments", json=body or cart(), headers={**headers, "Idempotency-Key": key})
 
 
+def bview(c, r, headers=None):
+    """The buyer's full view of a payment the agent just asked for (the agent's own reply is deliberately thin)."""
+    return c.get(f"/api/payments/{r.json()['id']}", headers=headers or BUYER).json()
+
+
 def paypal_calls(st):
     return [x for x in st.fake.calls if x["path"] != "/v1/oauth2/token"]
 
@@ -127,7 +132,10 @@ def test_idempotency_key_required_and_replay_is_one_order():
 # ------------------------------------------------------------------ D3: the catalogue, not the agent
 def test_price_comes_from_catalogue_and_agent_lie_asks_first():
     c, _st = client()
-    p = pay(c, cart({"sku": "EB-PULSE", "quantity": 1, "claimed_price": 49.0})).json()
+    r = pay(c, cart({"sku": "EB-PULSE", "quantity": 1, "claimed_price": 49.0}))
+    agent = r.json()                                   # review 11 Nov #10: the agent sees its own view only
+    assert not {"facts", "ai", "trace", "cart", "paypal_order_id"} & set(agent)
+    p = bview(c, r)
     assert p["amount_cents"] == 6900 and p["level"] == "ask_first" and not p["paypal_called"]
     assert "agent_price_differs" in [f["code"] for f in p["findings"]]
 
@@ -150,7 +158,7 @@ def test_payee_account_comes_from_registry():
 def test_unknown_page_rejected_and_page_text_from_capture():
     c, _st = client(llm=FakeLLM(match=False, page=True))
     assert pay(c, cart(page_id="nope")).status_code == 422
-    p = pay(c, cart({"sku": "EB-NOVA", "quantity": 1}, page_id="demo-poisoned"), key="k2").json()
+    p = bview(c, pay(c, cart({"sku": "EB-NOVA", "quantity": 1}, page_id="demo-poisoned"), key="k2"))
     assert p["status"] == "blocked" and not p["paypal_called"] and p["page_source"].startswith("demo-poisoned")
 
 
@@ -381,7 +389,7 @@ def test_agent_key_acts_in_its_buyers_session_and_records_the_agent_agentguard_k
     r = laptop.post("/api/payments", json=_demo_cart(),
                     headers={"Authorization": "Bearer " + minted["key"], "Idempotency-Key": "lap-1"})
     assert r.status_code == 200
-    p = r.json()
+    p = bview(a, r, H)
     assert p["agent_id"] == minted["agent_id"] and p["agent_verified"]           # the claim in the body is ignored
     assert [x["id"] for x in a.get("/api/payments", headers=H).json()] == [p["id"]]   # lands in A's session
     assert b.get("/api/payments", headers=H).json() == []                             # B sees nothing
@@ -415,7 +423,7 @@ def test_verified_agent_ids_cannot_be_claimed_with_the_shared_token_and_keys_are
     c, _ = client()
     r = pay(c, cart(agent_id="agt_0123456789ab"))
     assert r.status_code == 422 and r.json()["error"]["code"] == "reserved_agent_id"
-    assert pay(c, cart(), key="k2").json()["agent_verified"] is False
+    assert bview(c, pay(c, cart(), key="k2"))["agent_verified"] is False
     for i in range(5):
         assert c.post("/api/agent-keys", json={"name": f"a{i}"}, headers=BUYER).status_code == 201
     assert c.post("/api/agent-keys", json={"name": "a6"}, headers=BUYER).status_code == 409
