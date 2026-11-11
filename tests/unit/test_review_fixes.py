@@ -146,3 +146,49 @@ def test_10_agent_reply_has_no_budget_ai_or_trace():
     body = pay(c, cart()).json()
     assert {"id", "payment_id", "status", "findings"} <= set(body)
     assert not {"facts", "ai", "trace", "cart", "budget_left"} & set(body)
+
+
+def _demo(rate=30):
+    from fastapi.testclient import TestClient
+
+    from agentguard.web.app import create_app
+    from tests.unit.test_web import NOW
+    app = create_app(paypal_mode="fake", llm=FakeLLM(), clock=lambda: NOW, demo_mode=True, demo_source="synthetic",
+                     rate_per_min=rate)
+    return app, TestClient(app)
+
+
+def test_8_requests_with_made_up_cookies_cannot_create_sessions_or_evict_a_visitor():
+    import secrets
+    app, a = _demo()
+    tok = a.get("/api/demo/session").json()["buyer_token"]
+    H = {"Authorization": f"Bearer {tok}"}
+    assert a.post("/api/demo/run", json={"scenario": "normal"}, headers=H).status_code == 200
+    before = len(app.state.ag.sessions)
+    from fastapi.testclient import TestClient
+    attacker = TestClient(app)
+    for _ in range(210):                                               # more than MAX_SESSIONS
+        attacker.cookies.set("ag_demo", secrets.token_urlsafe(18))
+        attacker.get("/healthz")
+    assert len(app.state.ag.sessions) == before                         # nothing created
+    assert len(a.get("/api/payments", headers=H).json()) == 1           # the visitor's demo is intact
+
+
+def test_8_new_demo_sessions_are_rate_limited_per_address():
+    from fastapi.testclient import TestClient
+    app, _ = _demo()
+    codes = [TestClient(app).get("/api/demo/session").status_code for _ in range(22)]
+    assert codes[:20] == [200] * 20 and codes[-1] == 429
+
+
+def test_15_rate_limit_key_prefers_the_header_cloudflare_always_overwrites():
+    from starlette.requests import Request
+
+    from agentguard.web.app import client_ip
+
+    def req(h):
+        return Request({"type": "http", "headers": [(k.encode(), v.encode()) for k, v in h.items()],
+                        "client": ("10.0.0.1", 1)})
+    assert client_ip(req({"cf-connecting-ip": "1.1.1.1", "true-client-ip": "9.9.9.9"})) == "1.1.1.1"
+    assert client_ip(req({"true-client-ip": "9.9.9.9"})) == "9.9.9.9"
+    assert client_ip(req({})) == "10.0.0.1"

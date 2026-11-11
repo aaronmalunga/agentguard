@@ -80,7 +80,8 @@ def make_server(base_url: str | None = None, agent_key: str | None = None,
 
     @srv.tool(description=(
         "Ask to pay for items. AgentGuard decides: approved (paid), held/asked (the buyer must confirm) or blocked. "
-        "items: [{'sku': str, 'quantity': int}]. page_id: the page you shopped from. stated_total: the total you "
+        "items: [{'sku': str, 'quantity': int}]. page_id: the page you shopped from (always send it: AgentGuard checks "
+        "that page for hidden instructions, and without it that check can't run). stated_total: the total you "
         "believe it costs, as a string, if you have one."))
     def create_order(mandate_id: str, items: list[OrderItem], merchant_id: str = "soundmart", page_id: str | None = None,
                      stated_total: str | None = None, note: str | None = None) -> dict:

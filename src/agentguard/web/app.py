@@ -144,7 +144,8 @@ def client_ip(request: Request) -> str:
     """Render runs behind Cloudflare, which sets True-Client-IP to the visitor's address and overwrites any value a
     client sends. Render's own X-Forwarded-For entry is its proxy (it changes per request, so it can't be the key:
     found on the live site, 9 Nov). Off Render (local, tests) fall back to the socket address."""
-    ip = request.headers.get("true-client-ip") or request.headers.get("cf-connecting-ip")
+    # review 11 Nov #15: Cloudflare always overwrites CF-Connecting-IP, so it is preferred; True-Client-IP second.
+    ip = request.headers.get("cf-connecting-ip") or request.headers.get("true-client-ip")
     return ip.strip() if ip else (request.client.host if request.client else "unknown")
 
 
@@ -336,6 +337,7 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
     rate_per_min = rate_per_min if rate_per_min is not None else int(os.environ.get("AGENTGUARD_RATE_PER_MIN", "30"))
     limiter = RateLimiter(rate_per_min) if rate_per_min > 0 else None
     hook_limiter = RateLimiter(rate_per_min * 4) if rate_per_min > 0 else None
+    session_limiter = RateLimiter(20) if rate_per_min > 0 else None   # new demo sessions per IP per minute (#8)
 
     page_csp = _page_csp()
     keys = st.agent_keys = AgentKeys()
@@ -352,7 +354,10 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
                                     status_code=429, headers={"Retry-After": str(wait)})
         if resp is None:
             sid = request.cookies.get(SESSION_COOKIE, "")
-            _current.set(sid if demo_mode and SESSION_ID.match(sid) else "default")   # per-visitor demo (U6)
+            # review 11 Nov #8: only the page's own session call may CREATE a session; any other request with a
+            # cookie AgentGuard doesn't know uses the shared default, so rotating cookies can't evict visitors.
+            known = sid in st.sessions or request.url.path == "/api/demo/session"
+            _current.set(sid if demo_mode and SESSION_ID.match(sid) and known else "default")   # per-visitor (U6)
             token = (request.headers.get("authorization") or "").removeprefix("Bearer ").strip()
             request.state.agent_key = keys.lookup(token) if token.startswith(AGENT_KEY_PREFIX) else None
             if request.state.agent_key and not request.state.agent_key.revoked:
@@ -631,6 +636,10 @@ def create_app(*, paypal_mode: str | None = None, llm=None, ai: str | None = Non
             fresh = not SESSION_ID.match(sid)
             if fresh:
                 sid = secrets.token_urlsafe(18)
+            if sid not in st.sessions and session_limiter is not None:   # #8: new sessions are rate limited per IP
+                ok, wait = session_limiter.allow(client_ip(request))
+                if not ok:
+                    _err(429, "rate_limited", f"Too many new demo sessions from this address. Try again in {wait} s.")
             st.session(sid)
             resp = JSONResponse({"buyer_token": st.tokens["buyer"], "agent_token": st.tokens["agent"],
                                  "session": "own" if sid != "default" else "shared"})
