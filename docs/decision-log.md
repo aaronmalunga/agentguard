@@ -359,3 +359,18 @@ Every significant decision, pivot and correction, newest first. Real architectur
 - **Bug found on the way:** with no Gemini key, recorded demo answers were looked up under NoAI's model name, so none
   matched and every scenario fell back to "ask". This was there before today; fixed and covered by a regression test that
   fails on the old code. It matters for the "remove the key on Render" option for Gemini's EU/UK terms.
+
+## 11 Nov 2026 (afternoon): release-candidate checks before the code freeze
+- **Every setting test** (`tests/unit/test_settings_matrix.py`, 6 tests): all six demo scenarios in each setting a judge
+  could meet: key on, key removed (recorded answers only), Channel3 up / down / off, AI off, shadow mode. Checks the
+  README's promises (normal always captured; poisoned and agent-lies never reach PayPal; inflated never paid silently;
+  mislabelled asks whenever Channel3 answers; recorded answers replay without a key).
+- **Found by it, stated, not a bug:** with AI off (or a stand-in AI) the out-of-stock swap is captured, because only
+  the AI layer catches that in-limit attack. That is the rules-only gap the evaluation measures (rules alone 0/75).
+- **Display fix:** the Market step showed "under 1 ms" while Channel3's time is counted in the Shop records step; it now
+  says "with shop records" (we don't publish Channel3 timings, their terms, sources S9).
+- **README:** new "Sponsor tools, and the job each one does" (Channel3, AG Grid, APIMatic, Render). A draft line
+  claiming "CI must pass before Render deploys" was wrong (`autoDeploy: true` deploys on push) and was corrected before
+  commit.
+- **Process from here:** release-candidate tag → independent review in a separate chat (Fable 5.2) → fix real findings
+  only → final live check → code freeze; after that, documents only.

@@ -205,7 +205,8 @@
         : "Sold elsewhere for " + money(c.median_cents) + " at " + c.offers + " shop" + (c.offers === 1 ? "" : "s") +
           ". Few shops, so this can only ask you, never block.";
       extra = '<div class="ai-line">Channel3 product catalogue' + (c.cached ? ", checked in the last 15 minutes" : ", checked now") + "</div>";
-      if (c.cached) ms = "cached";
+      // Channel3's time is counted in the Shop records step (we don't publish Channel3 timings: their terms, S9)
+      ms = c.cached ? "cached" : "with shop records";
     } else { text = "Channel3 didn’t answer in time, so AgentGuard used the shop’s stored reference price"; }
     var pf = (p.findings || []).filter(function (f) { return f.code === "price_above_reference"; })[0];   // a price warning shows here, on the step that found it
     var lf = (p.findings || []).filter(function (f) { return f.code === "listing_mismatch"; })[0];   // product identity (11 Nov)

