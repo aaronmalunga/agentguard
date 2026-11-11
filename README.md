@@ -23,11 +23,23 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 ---
 
 ## Contents
-[The problem](#the-problem) · [How it's different](#how-agentguard-is-different) · [Try it](#try-it-in-two-minutes) · [Connect a real agent](#connect-a-real-agent-mcp) ·
-[How it works](#how-it-works) · [PayPal APIs](#the-paypal-apis-and-what-each-one-decides) ·
-[Results](#results-measured-not-estimated) · [Check the evidence yourself](#check-the-evidence-yourself) ·
-[Architecture](#architecture) · [Run it locally](#run-it-locally) · [Security](#security-and-abuse-limits) ·
-[AI and tool use](#ai-and-tool-use) · [Limitations](#limitations) · [Docs](#documentation) · [Licence](#licence)
+<p align="center">
+  <a href="#the-problem"><img alt="The problem" src="https://img.shields.io/badge/The_Problem-d99a6c?style=for-the-badge"></a>
+  <a href="#how-agentguard-is-different"><img alt="How it's different" src="https://img.shields.io/badge/How_It%27s_Different-d99a6c?style=for-the-badge"></a>
+  <a href="#try-it-in-two-minutes"><img alt="Try it" src="https://img.shields.io/badge/Try_It-d99a6c?style=for-the-badge"></a>
+  <a href="#connect-a-real-agent-mcp"><img alt="Connect an agent" src="https://img.shields.io/badge/Connect_an_Agent-1d1e21?style=for-the-badge"></a>
+  <a href="#how-it-works"><img alt="How it works" src="https://img.shields.io/badge/How_It_Works-1d1e21?style=for-the-badge"></a>
+  <a href="#the-paypal-apis-and-what-each-one-decides"><img alt="PayPal APIs" src="https://img.shields.io/badge/PayPal_APIs-1d1e21?style=for-the-badge"></a>
+  <a href="#results-measured-not-estimated"><img alt="Results" src="https://img.shields.io/badge/Results-1d1e21?style=for-the-badge"></a>
+  <a href="#check-the-evidence-yourself"><img alt="Check the evidence" src="https://img.shields.io/badge/Check_the_Evidence-1d1e21?style=for-the-badge"></a>
+  <a href="#architecture"><img alt="Architecture" src="https://img.shields.io/badge/Architecture-1d1e21?style=for-the-badge"></a>
+  <a href="#run-it-locally"><img alt="Run locally" src="https://img.shields.io/badge/Run_Locally-1d1e21?style=for-the-badge"></a>
+  <a href="#security-and-abuse-limits"><img alt="Security" src="https://img.shields.io/badge/Security-1d1e21?style=for-the-badge"></a>
+  <a href="#ai-and-tool-use"><img alt="AI use" src="https://img.shields.io/badge/AI_Use-1d1e21?style=for-the-badge"></a>
+  <a href="#limitations"><img alt="Limitations" src="https://img.shields.io/badge/Limitations-1d1e21?style=for-the-badge"></a>
+  <a href="#documentation"><img alt="Docs" src="https://img.shields.io/badge/Docs-1d1e21?style=for-the-badge"></a>
+  <a href="#licence"><img alt="Licence" src="https://img.shields.io/badge/Licence-1d1e21?style=for-the-badge"></a>
+</p>
 
 ## The problem
 **Authorized isn't the same as intended.**
@@ -49,10 +61,10 @@ health: [`/healthz`](https://agentguard-jg01.onrender.com/healthz)
 **Spending limits stop *how much* an agent spends. AgentGuard checks *whether the buyer meant it*, before money moves
 on PayPal.**
 
-- **It catches what limits can't, and we measured it.** On 75 attacks that stay inside the spending limits, rules
-  alone caught 0; with AI, 71. 0 of 42 good purchases were blocked.
-- **Tested with a real AI agent, plan fixed in advance, misses published.** 0 harmful payments in 34 completed runs;
-  what we didn't measure is stated.
+- **It catches what limits can't, and we measured it.** On 75 attacks that stay inside the spending limits:
+  <img alt="Rules alone: 0 of 75 caught" src="https://img.shields.io/badge/Rules%20alone-0%2F75-d99a6c?style=flat&labelColor=1d1e21"> <img alt="With AI: 71 of 75 caught" src="https://img.shields.io/badge/With%20AI-71%2F75-d99a6c?style=flat&labelColor=1d1e21"> <img alt="Good purchases blocked: 0 of 42" src="https://img.shields.io/badge/Good%20purchases%20blocked-0%2F42-d99a6c?style=flat&labelColor=1d1e21">
+- **Tested with a real AI agent, plan fixed in advance, misses published.**
+  <img alt="Harmful payments: 0 in 34 completed runs" src="https://img.shields.io/badge/Harmful%20payments-0%20of%2034%20runs-d99a6c?style=flat&labelColor=1d1e21"> What we didn't measure is stated.
 - **The shop's records and market prices, never the agent's word.** When the agent lied about a price it was caught
   5 of 5 times; Channel3 market prices flag overpricing.
 - **Built to be adopted.** An MCP server whose four tools can't move money, shadow mode to try it safely, and
@@ -184,6 +196,8 @@ the card issuer.
 Every number comes from a committed run. Test sets were frozen in git before the rules they test were final, and
 expectations were written down before each run ([evaluation plan](docs/evaluation-plan.md)). Misses are reported as
 they happened.
+
+<img alt="Rules alone: 0 of 75 caught" src="https://img.shields.io/badge/Rules%20alone-0%2F75-d99a6c?style=flat&labelColor=1d1e21"> <img alt="Rules plus AI: 71 of 75 caught" src="https://img.shields.io/badge/Rules%20%2B%20AI-71%2F75-d99a6c?style=flat&labelColor=1d1e21"> <img alt="Good purchases blocked: 0 of 42" src="https://img.shields.io/badge/Good%20purchases%20blocked-0%2F42-d99a6c?style=flat&labelColor=1d1e21"> <img alt="Real agent: 0 harmful payments in 34 runs" src="https://img.shields.io/badge/Real%20agent%3A%20harmful%20payments-0%20of%2034-d99a6c?style=flat&labelColor=1d1e21">
 
 **1. Attacks that stay inside the spending limits** ([`evidence/runs/`](evidence/runs/))
 
@@ -380,8 +394,8 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
 
 | Component | Licence | Where |
 |---|---|---|
-| AG Grid Community | MIT | `src/agentguard/web/static/vendor/ag-grid/LICENSE.txt` |
-| Michroma and Reddit Sans fonts | SIL Open Font Licence | `src/agentguard/web/static/vendor/fonts/` |
+| AG Grid Community | MIT | [Licence file](src/agentguard/web/static/vendor/ag-grid/LICENSE.txt) |
+| Michroma and Reddit Sans fonts | SIL Open Font Licence | [Font files and licences](src/agentguard/web/static/vendor/fonts/) |
 
 **Product data:** names, prices and images come from Channel3 and their merchants. They are shown for this demo only,
 not for reuse or redistribution, and no brand shown endorses or is affiliated with AgentGuard.
