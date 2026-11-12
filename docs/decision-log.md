@@ -406,3 +406,14 @@ Every significant decision, pivot and correction, newest first. Real architectur
   with one line instead of an error. No decision logic changed. Test: `test_healthz_says_whether_a_live_model_answers`.
 - **Video:** real-agent clips recorded before the key is removed, labelled "Real agent run"; site clips after, as judges
   will see it.
+
+## 12 Nov 2026 (afternoon): links pointed at a mirror domain, not GitHub — freeze exception (one link)
+- **Found by Aaron** while filling in Devpost: a GitHub link Claude gave him showed a different domain. The text tool
+  Claude writes through rewrote `https://` GitHub links to a third-party mirror domain. The same thing had happened in
+  an earlier session (10 Nov), so the wrong domain was already in the repo.
+- **Where:** README (CI badge, the MCP install command, which would have failed for judges) — fixed in `d990ec1`,
+  documents only; and the Proof page's "Full results" link in `index.html`.
+- **Freeze exception (Aaron, 14:41):** the `index.html` link is changed to github.com. One address string; no logic,
+  no styling, nothing shown in the video. The full test suite was run before pushing.
+- **Prevention:** search the repo for the mirror domain before any public push; Claude builds GitHub URLs without the
+  `https://` prefix in its own text, or in code from parts.
