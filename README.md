@@ -2,7 +2,7 @@
 
 # AgentGuard: agent spending controls, built on PayPal
 
-[![CI](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://gh.ali360.cloudns.ch/aaronmalunga/agentguard/actions/workflows/ci.yml)
+[![CI](https://github.com/aaronmalunga/agentguard/actions/workflows/ci.yml/badge.svg)](https://github.com/aaronmalunga/agentguard/actions/workflows/ci.yml)
 ![Tests: 251 passing](https://img.shields.io/badge/tests-251%20passing-2e7d32)
 ![PayPal: sandbox only](https://img.shields.io/badge/PayPal-sandbox%20only-0070ba)
 [![Licence: Apache-2.0](https://img.shields.io/badge/licence-Apache--2.0-555)](LICENSE)
@@ -118,7 +118,7 @@ through the guard. It exposes four tools, and **none of them can move money by i
 2. Paste the generated config into your MCP client. It runs:
    ```json
    {"mcpServers": {"agentguard": {"command": "uvx",
-     "args": ["--from", "agentguard[agent] @ git+https://gh.ali360.cloudns.ch/aaronmalunga/agentguard", "agentguard-mcp"],
+     "args": ["--from", "agentguard[agent] @ git+https://github.com/aaronmalunga/agentguard", "agentguard-mcp"],
      "env": {"AGENTGUARD_URL": "https://agentguard-jg01.onrender.com", "AGENTGUARD_AGENT_KEY": "<your key>"}}}}
    ```
 3. Ask your agent to buy something. Its payments appear in the Console under its own name.
